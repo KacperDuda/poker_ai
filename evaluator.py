@@ -1,6 +1,5 @@
 import itertools
 from collections import Counter
-import settings
 
 # Hierarchia układów (im wyżej tym lepiej)
 # 8: Straight Flush (Poker)
