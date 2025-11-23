@@ -4,6 +4,8 @@ import numpy as np
 from poker_env import PokerEnv
 from agent import DeepAgent, RandomAgent, PokerNet
 
+#do dopracowania, korzystamy tutaj ze starych metod od agenta oraz od poker_env
+
 def calculate_reward(player, initial_stack):
     return player.stack - initial_stack
 

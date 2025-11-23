@@ -1,145 +1,126 @@
-import time
-from poker_env import PokerEnv
-import evaluator
+import helpers
 import settings
+from poker_env import PokerEnv
+from player import Player
+import evaluator
+from helpers import conv_observation
 
-def pause(sec=0):
-    """Krótka pauza dla czytelności w terminalu."""
-    time.sleep(sec)
+# Stałe akcji
+ACTION_FOLD = 0
+ACTION_CALL_CHECK = 1
+ACTION_RAISE_BET = 2
+ACTION_DEAL = 999  # Sygnał dla skryptu do zmiany etapu
 
-def manual_step(env, action_type, amt_pct=0.0, comment=""):
-    """
-    Wykonuje ruch dla AKTUALNEGO gracza.
-    
-    Parametr amt_pct dla RAISE (action_type=2):
-      - 0.0 -> MIN RAISE (minimalna dozwolona kwota przebicia)
-      - 1.0 -> ALL-IN (wrzucenie całego stacka)
-      - 0.5 -> Połowa zakresu między Min a Max
-    """
-    player_idx = env.get_current_player_idx()
-    p = env.players[player_idx]
-    
-    # --- Generowanie opisu ruchu do logów ---
-    act_desc = "FOLD"
-    if action_type == 1: 
-        act_desc = "CHECK/CALL"
-    elif action_type == 2:
-        # Interpretacja suwaka dla logów
-        if amt_pct == 0.0:
-            act_desc = "RAISE (MIN)"
-        elif amt_pct == 1.0:
-            act_desc = "RAISE (ALL-IN)"
-        else:
-            act_desc = f"RAISE (Suwak: {amt_pct*100:.0f}%)"
+def run_simulation():
+    print("=== START SYMULACJI (R1: Start, R2: Kontynuacja, R3: Reset) ===\n")
 
-    print(f"\n>> RUCH: Gracz P{player_idx} ({p.stack:.0f}$) -> {act_desc} {comment}")
+    players_pool = [
+        Player(0, 1000.0),
+        Player(1, 2000.0),
+        Player(2, 1000.0),
+        Player(3, 1000.0)
+    ]
     
-    # --- Wykonanie kroku w środowisku ---
-    # env.step sam przeliczy amt_pct na konkretną kwotę żetonów
-    env.step(action_type, amt_pct)
-    env.render()
-    pause()
+    env = PokerEnv(players_pool, sb=10, bb=20, debug=True)
+    
+    # ================= RUNDA 1 =================
+    print(f">>> RUNDA 1: Start (P0 wygrywa walkowerem na Flopie)")
+    env.start_round()
 
-def run_scripted_game():
-    print("=== SCENARIUSZ: Test Suwaka (Min vs All-in) ===")
+    script_r1 = [
+        (3, ACTION_FOLD, 0.0,      "P3 (UTG) pasuje"),
+        (0, ACTION_RAISE_BET, 0.1, "P0 (BTN) podbija"),
+        (1, ACTION_FOLD, 0.0,      "P1 (SB) pasuje"),
+        (2, ACTION_CALL_CHECK, 0.0, "P2 (BB) sprawdza"),
+        (None, ACTION_DEAL, 0.0,   "--- DEAL FLOP ---"),
+        (2, ACTION_CALL_CHECK, 0.0, "P2 (BB) czeka"),
+        (0, ACTION_RAISE_BET, 0.3, "P0 (BTN) betuje"),
+        (2, ACTION_FOLD, 0.0,      "P2 (BB) pasuje -> Walkower dla P0")
+    ]
+    play_hand(env, script_r1)
     
-    # 1. Inicjalizacja: 3 graczy, stacki 1000$
-    players_ids = [0, 1, 2]
-    # Upewnij się, że masz settings.py, deck.py, card.py, player.py i poker_env.py
-    env = PokerEnv(players_ids, initial_stack=1000.0)
+    print(f"\n>>> RUNDA 2: Kontynuacja (Start Round - Stacki zachowane)")
     
-    env.reset()
-    env.render()
-    print("Start rozdania. Dealer: P0, SB: P1, BB: P2")
-    pause()
+    env.start_round()
 
-    # ------------------------------------------------
-    # FAZA 1: PREFLOP
-    # Kolejność: P0 (D) -> P1 (SB) -> P2 (BB)
-    # ------------------------------------------------
-    print("\n--- FAZA: PREFLOP ---")
+    script_r2 = [
+        (0, ACTION_CALL_CHECK, 0.0, "P0 (UTG) Limp"),
+        (1, ACTION_FOLD, 0.0,       "P1 (BTN) Fold"),
+        (2, ACTION_CALL_CHECK, 0.0, "P2 (SB) Complete"), 
+        (3, ACTION_RAISE_BET, 1.0,  "P3 (BB) ALL-IN!"),  
+        (0, ACTION_CALL_CHECK, 0.0, "P0 sprawdza All-in"),
+        (2, ACTION_CALL_CHECK, 0.0, "P2 sprawdza All-in"),
+    ]
+    play_hand(env, script_r2)
     
-    # P0: Chce przebić, ale minimalnie, żeby tanio zobaczyć flop.
-    # Używamy suwaka 0.0 -> to jest MIN RAISE.
-    manual_step(env, action_type=2, amt_pct=0.0, comment="(Chcę przebić tylko o minimum!)")
-    
-    # P1: Sprawdza (Call)
-    manual_step(env, action_type=1, comment="(Call)")
-    
-    # P2: Pasuje (Fold)
-    manual_step(env, action_type=0, comment="(Fold)")
-    
-    # ------------------------------------------------
-    # FAZA 2: FLOP
-    # ------------------------------------------------
-    print("\n>>> ROZDAJEMY FLOPA...")
-    env.deal_next_stage()
-    env.render()
-    pause()
-    
-    print("\n--- FAZA: FLOP ---")
-    # Zostali P0 i P1. Zaczyna P1 (SB).
-    
-    # P1: Czeka
-    manual_step(env, action_type=1, comment="(Check)")
-    
-    # P0: Ma silną rękę, chce przebić solidnie.
-    # Ustawia suwak na 50% zakresu między min-raise a swoim max stackiem.
-    manual_step(env, action_type=2, amt_pct=0.5, comment="(Mocny Raise - 50% suwaka)")
-    
-    # P1: Sprawdza
-    manual_step(env, action_type=1, comment="(Call)")
+    # ================= KONIEC =================
+    print_final_stacks(env.players)
 
-    # ------------------------------------------------
-    # FAZA 3: TURN
-    # ------------------------------------------------
-    print("\n>>> ROZDAJEMY TURNA...")
-    env.deal_next_stage()
-    env.render()
-    pause()
-    
-    print("\n--- FAZA: TURN ---")
-    
-    # Obaj czekają (Check-Check)
-    manual_step(env, action_type=1, comment="(Check)")
-    manual_step(env, action_type=1, comment="(Check)")
 
-    # ------------------------------------------------
-    # FAZA 4: RIVER
-    # ------------------------------------------------
-    print("\n>>> ROZDAJEMY RIVERA...")
-    env.deal_next_stage()
-    env.render()
-    pause()
+def play_hand(env: PokerEnv, scripted_actions):
+    step_num = 1
+    game_over = False
     
-    print("\n--- FAZA: RIVER ---")
-    
-    # P1: Próbuje ukraść pulę minimalnym zakładem (Suwak 0.0)
-    manual_step(env, action_type=2, amt_pct=0.0, comment="(Bet MIN - próba kradzieży)")
-    
-    # P0: Wchodzi ALL-IN! (Suwak 1.0)
-    # Niezależnie od kwoty w stacku, 1.0 oznacza 'wrzucam wszystko co mam'
-    manual_step(env, action_type=2, amt_pct=1.0, comment="(ALL-IN! Suwak na 100%)")
-    
-    # P1: Sprawdza (Hero Call)
-    manual_step(env, action_type=1, comment="(Call All-In)")
+    for p_id, action, val, desc in scripted_actions:
+        if action == ACTION_DEAL:
+            print(f"  [{desc}] Zmiana etapu...")
+            env.deal_next_stage()
+            print(env)
+            continue
 
-    # ------------------------------------------------
-    # SHOWDOWN
-    # ------------------------------------------------
-    print("\n=== SHOWDOWN (Koniec gry) ===")
-    
-    active_players = [p for p in env.players if p.is_active]
-    
-    # Pokazujemy karty
-    for p in active_players:
-        score_tuple = evaluator.get_best_hand(p.hand, env.community_cards)
-        hand_name = evaluator.get_hand_name(score_tuple)
-        print(f"Gracz P{p.id}: {p.hand} -> {hand_name}")
+        current_p = env.players[env.current_player_idx]
         
-    # Wyłaniamy zwycięzcę
-    winners = evaluator.determine_winner(env)
-    print(f"\n$$$ ZWYCIĘZCA: P{winners} zgarnia pulę {env.pot:.1f}$ $$$")
+        if p_id is not None and current_p.id != p_id:
+            if action == ACTION_FOLD: continue 
+            print(f"     [!] Uwaga: Kolej P{current_p.id}, skrypt oczekiwał P{p_id}.")
+
+        print(f"  [Krok {step_num}] P{current_p.id} ({desc}) -> Action: {action}")
+        
+        _, done, info = env.step(action, val)
+        print(env)
+        print(helpers.conv_observation(env.get_observation(current_p.id)))
+        
+        if done:
+            game_over = True
+            if "method" in info and info["method"] == "walkower":
+                print(f"  [KONIEC] Walkower! Wygrywa Gracz {info.get('winner')}")
+            break
+        step_num += 1
+
+    if not game_over:
+        print("\n  --- Koniec licytacji, Showdown ---")
+        if env.pot > 0:
+            winners = env.finalize_showdown()
+            print(env)
+            print(f"  [WYNIK] Zwycięzcy ID: {winners}")
+
+    print_round_summary(env)
+
+
+def print_round_summary(env):
+    print("  Stany graczy (Bieżące Stacki):")
+    for p in env.players:
+        hand_desc = "Folded"
+        if p.is_active:
+            try:
+                if len(env.community_cards) >= 3:
+                    score_tuple = evaluator.get_best_hand(p.hand, env.community_cards)
+                    hand_desc = evaluator.get_hand_name(score_tuple)
+                else:
+                    hand_desc = "Pre-flop/Flop (No Showdown)"
+            except:
+                hand_desc = "Unknown"
+            
+        print(f"    P{p.id}: {p.stack:.2f}$ ({hand_desc})")
+
+
+def print_final_stacks(players):
+    print("\n=== PODSUMOWANIE KOŃCOWE ===")
+    total = 0
+    for p in players:
+        print(f"Gracz {p.id}: {p.stack:.2f}$")
+        total += p.stack
+    print(f"Suma w systemie: {total:.2f}$")
 
 if __name__ == "__main__":
-    run_scripted_game()
+    run_simulation()

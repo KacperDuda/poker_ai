@@ -1,19 +1,26 @@
+from numpy._typing._array_like import NDArray
+from numpy import floating
+from numpy._typing._nbit_base import _32Bit
+from typing import Any, Literal, Self
+
 import numpy as np
 from card import Card
 import settings
 from deck import Deck
 from player import Player
-import evaluator  # <--- IMPORTUJEMY LOGIKĘ DO ŚRODOWISKA
+import evaluator
 
 class PokerEnv:
-    def __init__(self, players_data, initial_stack=1000.0, sb=settings.SB, bb=settings.BB):
+    def __init__(self, players_data, initial_stack=1000.0, sb=settings.SB, bb=settings.BB, chip_step=5.0, debug = False) -> None:
         if not isinstance(players_data, list) or len(players_data) < 2:
             raise ValueError("players_data musi być listą z minimum 2 graczami.")
 
-        self.sb_amount = float(sb)
-        self.bb_amount = float(bb)
+        self.sb_amount: float = float(sb)
+        self.bb_amount: float = float(bb)
+        self.chip_step: float = float(chip_step)
+        self.debug: bool = debug
         
-        self.players = []
+        self.players: list[Player] = []
         self.starting_stacks = {}
 
         for item in players_data:
@@ -27,135 +34,112 @@ class PokerEnv:
             else:
                 raise ValueError(f"Player type unsupported: {type(item)}")
         
-        self.num_players = len(self.players)
-        self.player_ids = [p.id for p in self.players]
+        self.num_players: int = len(self.players)
+        self.player_ids: list[int] = [p.id for p in self.players]
 
-        self.deck = Deck()
+        self.deck: Deck = Deck()
         self.community_cards: list[Card] = []
-        self.pot = 0.0
-        self.stage = 0 
-        self.dealer_pos = -1 
-        self.current_player_idx = 0
-        self.min_raise = 0.0
+        self.pot: float = 0.0
+        self.stage: int = 0 
+        self.dealer_pos: int = -1 
+        self.current_player_idx: int = 0
+        self.min_raise: float = 0.0
 
         self.obs_dim: int = (
             settings.N_CARDS + settings.N_CARDS +
             ((settings.MAX_SEATS - 1) * 4 + 3)
         )
 
-    # --- NOWE METODY DO OBSŁUGI WYGRANEJ ---
+    # zaokroąglanie do wielokrtności, np. 53zł -> 55zł raise
+    def _round_to_chip(self, amount) -> float:
+        if self.chip_step <= 0: return amount
+        steps: int = round(amount / self.chip_step)
+        return steps * self.chip_step
 
-    def _distribute_pot(self, winners_ids):
-        """
-        Prywatna metoda: Dzieli pulę równo między zwycięzców i aktualizuje ich stacki.
-        Zeruje pulę na końcu.
-        """
+
+    def _distribute_pot(self, winners_ids) -> None:
         if not winners_ids:
             return
 
         split_amount = self.pot / len(winners_ids)
         
         for w_id in winners_ids:
-            # Znajdź obiekt gracza (zakładamy, że ID są spójne z indeksami lub szukamy)
-            # W naszej prostej implementacji self.players[i].id == i zazwyczaj, 
-            # ale bezpieczniej jest poszukać
             winner = next((p for p in self.players if p.id == w_id), None)
             if winner:
                 winner.stack += split_amount
         
-        # Reset puli po wypłacie
         self.pot = 0.0
 
     def finalize_showdown(self):
-        """
-        Publiczna metoda wywoływana na końcu Rivera.
-        Automatycznie sprawdza karty, wyłania zwycięzcę i aktualizuje stacki.
-        Zwraca listę ID zwycięzców.
-        """
-        # 1. Użyj evaluator, aby znaleźć najlepsze układy
+        #dobieramy pozostałe kart (auto-runout)
+        self.community_cards.extend(self.deck.draw(5 - len(self.community_cards)))
+        self.stage = 5
+
         winners_ids = evaluator.determine_winner(self)
-        
-        # 2. Wypłać pieniądze
         self._distribute_pot(winners_ids)
         
         return winners_ids
 
-    # --- ZMODYFIKOWANY STEP ---
-
     def step(self, action_type, action_amt_pct=0.0):
-        """
-        Wykonuje ruch i AUTOMATYCZNIE sprawdza, czy gra się skończyła przez 'Walkower'.
-        Zwraca: next_obs (tutaj None/Dummy), reward (0), done (True/False), info
-        """
-        player = self.players[self.current_player_idx]
-        current_max_bet = max(p.current_bet for p in self.players)
-        to_call = current_max_bet - player.current_bet
+        player: Player = self.players[self.current_player_idx]
+        current_max_bet: float = max(p.current_bet for p in self.players)
+        to_call: float = current_max_bet - player.current_bet # w każdym przypadku musimy wyrównać do najwyższego 
 
-        # --- LOGIKA RUCHU (Fold/Call/Raise) ---
         if action_type == 0: # FOLD
-            if to_call == 0: 
-                action_type = 1 
-            else: 
-                player.is_active = False
+            player.is_active = False
 
         if action_type == 1: # CALL / CHECK
-            amt = min(player.stack, to_call)
+            amt: float = min(player.stack, to_call) # nie można postawić więcej niż się ma
             self._post_bet(player, amt)
 
         elif action_type == 2: # RAISE
-            target_min_bet = current_max_bet + self.min_raise
-            target_max_bet = player.current_bet + player.stack
+            target_min_bet = current_max_bet + self.min_raise # trzeba przebić gracza o największej stawce o conajmniej min_raise
+            target_max_bet = player.current_bet + player.stack # nie da się przebić więcej niż all-in @KARABI czy to się zgadza, czy tutaj jest   
 
             if target_max_bet <= target_min_bet: 
-                amt = player.stack
-                self._post_bet(player, amt) 
+                # gracz ma tylko możliwość zrobić raisa za all-in, ale za mało, żeby zwiększyć przebicie self.min_raise
+                self._post_bet(player, player.stack)
             else:
+                # Obliczamy zakres podbicia
                 amount_to_add_min = target_min_bet - player.current_bet
                 amount_to_add_max = player.stack
-                amt = amount_to_add_min + (amount_to_add_max - amount_to_add_min) * action_amt_pct
-                amt = float(int(amt))
-
+                
+                raw_amt = amount_to_add_min + (amount_to_add_max - amount_to_add_min) * action_amt_pct
+                amt = self._round_to_chip(raw_amt)
+                
+                
                 new_raise_size = (player.current_bet + amt) - current_max_bet
-                if new_raise_size > self.min_raise:
-                    self.min_raise = new_raise_size
+                if new_raise_size > self.min_raise: self.min_raise = new_raise_size
+                    
                 self._post_bet(player, amt)
 
-        # --- AUTOMATYCZNE WYKRYWANIE KOŃCA (WALKOWER) ---
         active_players = [p for p in self.players if p.is_active]
         
-        if len(active_players) == 1:
-            # Wszyscy inni spasowali!
+        if len(active_players) == 1: #walkover
             winner = active_players[0]
             self._distribute_pot([winner.id])
-            
-            # Zwracamy done=True
             return 0, True, {"winner": winner.id, "method": "walkower"}
 
-        # Przesunięcie wskaźnika
         self._next_active_player()
 
-        # Gra toczy się dalej
         return 0, False, {}
 
-    # --- RESZTA METOD BEZ ZMIAN ---
     
     def get_current_player_idx(self):
         return self.current_player_idx
 
-    def get_observation(self, player_idx):
-        hero = self.players[player_idx]
+    def get_observation(self, player_idx) -> NDArray[floating[_32Bit]]:
+        hero: Player = self.players[player_idx]
         hero_vec = np.zeros(settings.N_CARDS, dtype=np.float32)
         for c in hero.hand: hero_vec += c.to_one_hot()
         
         board_vec = np.zeros(settings.N_CARDS, dtype=np.float32)
         for c in self.community_cards: board_vec += c.to_one_hot()
         
-        opp_vec = []
+        opp_vec: list[Any] = []
         for i in range(1, settings.MAX_SEATS):
-            seat_idx = (player_idx + i) % self.num_players
-            if seat_idx >= self.num_players:
-                opp_vec.extend([0.0]*4)
-                continue
+            seat_idx: int = (player_idx + i) % self.num_players
+
             opp = self.players[seat_idx]
             opp_stats = [
                 opp.stack / settings.MAX_STACK,
@@ -178,36 +162,25 @@ class PokerEnv:
             p.stack = self.starting_stacks[p.id]
             p.reset_for_hand()
         self.start_round()
-        return None
 
-    def start_round(self):
+    def start_round(self) -> bool:
         self.deck = Deck()
         self.community_cards = []
         self.pot = 0.0
         self.stage = 0
         self.min_raise = self.bb_amount
 
-        active_count = 0
-        for p in self.players:
-            p.reset_for_hand()
-            if p.stack > 0.01: 
-                p.is_active = True
-                active_count += 1
-            else:
-                p.is_active = False
+        for p in self.players: p.reset_for_hand()
 
+        active_count = sum(p.is_active for p in self.players)
         if active_count < 2:
-            print("Game Over! Not enough players.")
-            return
+            if self.debug: print("Game Over! Not enough players.")
+            return False
 
-        if self.dealer_pos == -1:
-            self.dealer_pos = 0 if self.players[0].is_active else self._get_next_active_seat(0)
-        else:
-            self.dealer_pos = self._get_next_active_seat(self.dealer_pos)
+        self.dealer_pos = self._get_next_active_seat(self.dealer_pos)
 
-        for p in self.players:
-            if p.is_active:
-                p.hand = self.deck.draw(2)
+
+        for p in self.players: p.hand = self.deck.draw(2) if p.is_active else []
 
         sb_pos, bb_pos, first_action_idx = self._calculate_positions(active_count)
         self._post_blind(self.players[sb_pos], self.sb_amount)
@@ -216,14 +189,16 @@ class PokerEnv:
         self.current_player_idx = first_action_idx
         self._ensure_active_player()
 
+        return True
+
     def deal_next_stage(self):
         if self.stage == 0: self.community_cards.extend(self.deck.draw(3)); self.stage = 1
         elif self.stage == 1: self.community_cards.extend(self.deck.draw(1)); self.stage = 2
         elif self.stage == 2: self.community_cards.extend(self.deck.draw(1)); self.stage = 3
         elif self.stage >= 3: return
 
-        for p in self.players:
-            p.current_bet = 0.0
+        for p in self.players: p.current_bet = 0.0
+
         self.min_raise = self.bb_amount
         self.current_player_idx = self._get_next_active_seat(self.dealer_pos)
         self._ensure_active_player()
@@ -234,9 +209,10 @@ class PokerEnv:
             if self.players[idx].is_active: return idx
         return current_seat
 
-    def _post_bet(self, player, amount):
+    def _post_bet(self, player: Player, amount: float):
         player.stack -= amount
         player.current_bet += amount
+        player.total_wagered += amount
         self.pot += amount
         if player.stack <= 0.01: player.is_allin = True
 
@@ -251,10 +227,11 @@ class PokerEnv:
             first_action = self._get_next_active_seat(bb_pos)
         return sb_pos, bb_pos, first_action
 
-    def _post_blind(self, player, amount):
+    def _post_blind(self, player: Player, amount):
         if not player.is_active: return
         actual = min(player.stack, amount)
         player.stack -= actual
+        player.total_wagered += actual
         player.current_bet += actual
         self.pot += actual
         if player.stack <= 0.01: player.is_allin = True
@@ -271,14 +248,14 @@ class PokerEnv:
         p = self.players[self.current_player_idx]
         if not p.is_active or p.is_allin: self._next_active_player()
 
-    def render(self):
-        print("\n" + "-"*50)
-        print(f"BOARD: {self.community_cards} | POT: {self.pot:.1f} | MinRaise: {self.min_raise}")
+    def __repr__(self) -> str:
+        ret = "\n" + "-"*67 + "\n"
+        ret += f"BOARD: {self.community_cards} | POT: {self.pot:.1f} zł | MinRaise: {self.min_raise}\n"
+        
         for i, p in enumerate(self.players):
             marker = "D" if i == self.dealer_pos else " "
             act = "<--" if i == self.current_player_idx else ""
-            status = ""
-            if not p.is_active: status = "[OUT]"
-            elif p.is_allin: status = "[ALLIN]"
-            print(f"{marker} {p} {status} {act}")
-        print("-" * 50)
+            ret += f"{marker} {p} {act}\n"
+            
+        ret += "-" * 67
+        return ret

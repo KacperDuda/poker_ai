@@ -30,6 +30,7 @@ def evaluate_5_cards(cards) -> tuple[int, tuple[int, ...]]:
     is_straight = (max(ranks) - min(ranks) == 4) and (len(set(ranks)) == 5)
     
     # Specjalny przypadek: Strit "Wheel" A-2-3-4-5 (Rangi: 12, 3, 2, 1, 0)
+    # dla shorthand to nie działa, ALE dla shorthend będzie w ogóle inna funkcja do rozstrzygnięcia :)
     if set(ranks) == {12, 3, 2, 1, 0}:
         is_straight = True
         ranks = [3, 2, 1, 0] # W Wheelu 5 jest najwyższa (rank 3)

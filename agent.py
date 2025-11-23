@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+#do dopracowania, korzystamy tutaj ze starych metod od agenta oraz od poker_env
+
 class Agent:
     def __init__(self, agent_id):
         self.id = agent_id
