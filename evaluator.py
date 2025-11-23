@@ -12,40 +12,42 @@ from collections import Counter
 # 1: Pair (Para)
 # 0: High Card (Wysoka Karta)
 
-def evaluate_5_cards(cards):
+def evaluate_5_cards(cards) -> tuple[int, tuple[int, ...]]:
     """
     Ocenia układ 5 kart.
-    Zwraca krotkę: (ranking_układu, [lista_kickrów_malejąco])
-    Dzięki temu Python może łatwo porównywać krotki, np. (1, [12, 10...]) > (1, [11, 10...])
+    Zwraca krotkę: (ranking_układu, krotka_kickrów_malejąco)
+    Użycie krotek (tuples) naprawia błąd Pyright i ułatwia porównywanie.
     """
     # Pobieramy rangi i kolory
     ranks = sorted([c.rank_idx for c in cards], reverse=True)
     suits = [c.suit_idx for c in cards]
     
-    # Sprawdzamy kolor i strit
+    # Sprawdzamy kolor
     is_flush = len(set(suits)) == 1
     
     # Sprawdzanie strita
-    # Normalny strit: 5 kolejnych kart
+    # Normalny strit: różnica między max a min to 4 oraz 5 unikalnych kart
     is_straight = (max(ranks) - min(ranks) == 4) and (len(set(ranks)) == 5)
     
     # Specjalny przypadek: Strit "Wheel" A-2-3-4-5 (Rangi: 12, 3, 2, 1, 0)
     if set(ranks) == {12, 3, 2, 1, 0}:
         is_straight = True
-        ranks = [3, 2, 1, 0] # As w tym przypadku jest niski, więc najwyższą kartą strita jest 5 (rank 3)
+        ranks = [3, 2, 1, 0] # W Wheelu 5 jest najwyższa (rank 3)
+
+    # Konwertujemy ranks na krotkę (dla porównywania i typowania)
+    ranks_tuple = tuple(ranks)
 
     # 1. Straight Flush
     if is_straight and is_flush:
-        return (8, ranks)
+        return (8, ranks_tuple)
 
     # Licznik rang (dla karety, fulla, par)
     counts = Counter(ranks)
     # Sortujemy: najpierw po liczbie wystąpień (malejąco), potem po randze (malejąco)
-    # Przykład Fulla (K, K, K, 2, 2): [(K, 3), (2, 2)]
     sorted_counts = sorted(counts.items(), key=lambda x: (x[1], x[0]), reverse=True)
     
-    # Rangi posortowane wg ważności (np. w fullu trójka ważniejsza od pary)
-    score_ranks = [r for r, count in sorted_counts]
+    # Rangi posortowane wg ważności - konwertujemy od razu na krotkę
+    score_ranks = tuple([r for r, count in sorted_counts])
 
     # 2. Kareta (4 powtórzenia)
     if sorted_counts[0][1] == 4:
@@ -57,11 +59,11 @@ def evaluate_5_cards(cards):
     
     # 4. Flush
     if is_flush:
-        return (5, ranks)
+        return (5, ranks_tuple)
     
     # 5. Straight
     if is_straight:
-        return (4, ranks) # Jeśli Wheel, ranks jest już poprawione wyżej
+        return (4, ranks_tuple) # ranks_tuple uwzględnia już poprawkę dla Wheel
     
     # 6. Trójka (3 powtórzenia)
     if sorted_counts[0][1] == 3:
@@ -76,14 +78,14 @@ def evaluate_5_cards(cards):
         return (1, score_ranks)
     
     # 9. Wysoka Karta
-    return (0, ranks)
+    return (0, ranks_tuple)
 
 def get_best_hand(hole_cards, community_cards):
     """
     Znajduje najlepszy układ 5-kartowy z dostępnych 7 kart (2 ręka + 5 stół).
     """
     all_cards = hole_cards + community_cards
-    best_score = (-1, [])
+    best_score = (-1, ())
     
     # Iterujemy przez wszystkie kombinacje 5 kart z 7 (jest ich 21)
     for combo in itertools.combinations(all_cards, 5):
@@ -104,7 +106,7 @@ def determine_winner(env):
     if len(active_players) == 1:
         return [active_players[0].id]
     
-    best_score = (-1, [])
+    best_score = (-1, ())
     winners = []
     
     # Oceniamy każdego aktywnego gracza
