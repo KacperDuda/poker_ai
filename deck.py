@@ -15,7 +15,7 @@ class Deck:
     def shuffle(self):
         random.shuffle(self.cards)
 
-    def draw(self, n=1):
+    def draw(self, n=1)-> list[Card]:
         drawn = []
         for _ in range(n):
             drawn.append(self.cards.pop())

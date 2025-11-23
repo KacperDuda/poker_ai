@@ -1,11 +1,12 @@
 import numpy as np
+from card import Card
 import settings
 from deck import Deck
 from player import Player
 import evaluator  # <--- IMPORTUJEMY LOGIKĘ DO ŚRODOWISKA
 
 class PokerEnv:
-    def __init__(self, players_data, initial_stack=1000, sb=settings.SB, bb=settings.BB):
+    def __init__(self, players_data, initial_stack=1000.0, sb=settings.SB, bb=settings.BB):
         if not isinstance(players_data, list) or len(players_data) < 2:
             raise ValueError("players_data musi być listą z minimum 2 graczami.")
 
@@ -29,15 +30,15 @@ class PokerEnv:
         self.num_players = len(self.players)
         self.player_ids = [p.id for p in self.players]
 
-        self.deck = None
-        self.community_cards = []
+        self.deck = Deck()
+        self.community_cards: list[Card] = []
         self.pot = 0.0
         self.stage = 0 
         self.dealer_pos = -1 
         self.current_player_idx = 0
         self.min_raise = 0.0
 
-        self.obs_dim = (
+        self.obs_dim: int = (
             settings.N_CARDS + settings.N_CARDS +
             ((settings.MAX_SEATS - 1) * 4 + 3)
         )
