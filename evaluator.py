@@ -1,3 +1,6 @@
+from typing import Any
+
+
 import itertools
 from collections import Counter
 
@@ -96,7 +99,7 @@ def get_best_hand(hole_cards, community_cards):
             
     return best_score
 
-def determine_winner(env):
+def determine_winner(env) -> list[int]:
     """
     Główna funkcja do wyłonienia zwycięzcy w środowisku PokerEnv.
     Zwraca listę indeksów zwycięzców (zwykle jeden, ale możliwy remis/split pot).

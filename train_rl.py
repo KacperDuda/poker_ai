@@ -1,130 +1,132 @@
 import torch
 import torch.optim as optim
 import numpy as np
+from typing import Dict, List
+
 from poker_env import PokerEnv
-from agent import DeepAgent, RandomAgent, PokerNet
+from agent import Agent, DeepAgent, PokerNetwork, RandomAgent
 
-#do dopracowania, korzystamy tutaj ze starych metod od agenta oraz od poker_env
+# --- KONFIGURACJA ---
+NUM_EPISODES = 5000
+LEARNING_RATE = 0.001
+STACK_SIZE = 1000.0
 
-def calculate_reward(player, initial_stack):
-    return player.stack - initial_stack
+def calculate_reward(player_stack: float, initial_stack: float) -> float:
+    """Prosta funkcja nagrody: Zysk/Strata netto w żetonach."""
+    return player_stack - initial_stack
 
 def train():
-    # 1. Konfiguracja 6 graczy
-    # ID: 0, 1, 2, 3, 4, 5
-    # Agenci AI: 0, 2, 4
-    # Randomy: 1, 3, 5
-    players_ids = [0, 1, 2, 3, 4, 5]
-    env = PokerEnv(players_ids, initial_stack=1000)
+    print("=== START TRENINGU (REINFORCE) ===")
     
-    # --- TWORZENIE AGENTÓW ---
+    # Inicjalizacja środowiska z 4 graczami
+    players_ids = [0, 1, 2, 3]
+    env = PokerEnv(players_ids, initial_stack=STACK_SIZE)
     
-    # Krok A: Tworzymy JEDNĄ sieć neuronową (Wspólny Mózg)
-    # Dzięki temu wszyscy agenci AI uczą się tej samej strategii
-    shared_brain = PokerNet(input_dim=env.obs_dim)
-    # Przenosimy na GPU jeśli dostępne (w DeepAgent robimy to przez referencję, ale tu warto jawnie)
+    # 1. WSPÓLNA SIEĆ (Shared Brain)
+    # Pobieramy wymiar obserwacji z przykładowego wywołania
+    dummy_obs = env.get_observation(0)
+    input_dim = dummy_obs.shape[0] # np. 109 (karty + stan)
+    
+    shared_model = PokerNetwork(input_dim)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    shared_brain.to(device)
+    shared_model.to(device)
     
-    # Krok B: Inicjalizacja słownika agentów
-    agents = {}
-    ai_agent_ids = [0, 2, 4] # Lista ID naszych uczących się botów
+    # Optymalizator aktualizuje wagi wspólnego modelu
+    optimizer = optim.Adam(shared_model.parameters(), lr=LEARNING_RATE)
     
-    for pid in players_ids:
-        if pid in ai_agent_ids:
-            # Przekazujemy shared_net!
-            agents[pid] = DeepAgent(pid, env.obs_dim, shared_net=shared_brain)
-        else:
-            agents[pid] = RandomAgent(pid)
+    # 2. TWORZENIE AGENTÓW Z TYPOWANIEM
+    # Słownik mapuje ID gracza (int) na instancję klasy Agent
+    agents: Dict[int, Agent] = {}
+    
+    # Agenci 0 i 1 to AI (uczą się tego samego modelu)
+    agents[0] = DeepAgent(0, input_dim, shared_model=shared_model)
+    agents[1] = DeepAgent(1, input_dim, shared_model=shared_model)
+    # Agenci 2 i 3 to tło (losowi)
+    agents[2] = RandomAgent(2)
+    agents[3] = RandomAgent(3)
+    
+    # Lista ID agentów, którzy podlegają treningowi
+    learning_ids: List[int] = [0, 1]
 
-    # Optimizer aktualizuje parametry wspólnego mózgu
-    optimizer = optim.Adam(shared_brain.parameters(), lr=0.001)
-    
-    num_episodes = 1000
-    print(f"--- START TRENINGU 6-OSOBOWEGO ({num_episodes} rozdań) ---")
-    print(f"DeepAgents (Shared Brain): {ai_agent_ids}")
-    print(f"RandomAgents: {[p for p in players_ids if p not in ai_agent_ids]}")
-
-    for episode in range(num_episodes):
-        env.reset()
+    # --- PĘTLA GŁÓWNA ---
+    for episode in range(NUM_EPISODES):
         
-        # Pamięć log_probs osobna dla każdego agenta AI
-        # Struktura: { 0: [log_prob1, log_prob2], 2: [...], 4: [...] }
-        episode_memory = {pid: [] for pid in ai_agent_ids}
-        
-        # Zapamiętujemy stacki początkowe, żeby policzyć nagrody
-        initial_stacks = {p.id: p.stack for p in env.players}
-        
+        # Reset środowiska
+        _ = env.reset() # state nie jest nam tu potrzebny, bo pobieramy go w pętli
         done = False
         
+        # Wyczyszczenie pamięci gradientów agentów AI
+        for pid in learning_ids:
+            # Rzutowanie (casting), bo my wiemy że to DeepAgent, ale słownik ma typ Agent
+            agent = agents[pid]
+            if isinstance(agent, DeepAgent):
+                agent.clear_memory()
+
+        # --- PĘTLA ROZDANIA ---
         while not done:
-            current_idx = env.get_current_player_idx()
-            current_agent = agents[current_idx]
-            obs = env.get_observation(current_idx)
+            current_pid = env.current_player_idx
+            current_agent = agents[current_pid]
             
-            if current_idx in ai_agent_ids:
-                # To jest Agent AI - musimy zapisać log_prob do treningu
-                action, slider, log_prob = current_agent.get_action_and_log_prob(obs)
-                
-                # Zapisujemy decyzję w pamięci KONKRETNEGO agenta
-                episode_memory[current_idx].append(log_prob)
-                
-                # Wykonujemy ruch (konwersja slider tensor -> float)
-                env.step(action, slider.item())
-                
-            else:
-                # To jest Random - po prostu gra, nie uczymy go
-                action, slider = current_agent.get_action(obs)
-                env.step(action, slider)
+            # Pobranie obserwacji (typ: np.ndarray)
+            obs = env.get_observation(current_pid)
+            
+            # Decyzja agenta (zwraca typ: PlayerAction -> tuple[int, float])
+            action_tuple = current_agent.get_action(obs)
+            
+            # Wykonanie ruchu w środowisku
+            # step() oczekuje dokładnie PlayerAction
+            
+            _, _, done, _ = env.step(action_tuple)  # pyright: ignore[reportAssignmentType]
 
-            # Warunki końca gry
-            active = [p for p in env.players if p.is_active]
-            if len(active) == 1 or (env.stage == 3 and env.min_raise == 0):
-                done = True
-            if env.pot > 10000: done = True # Safety brake
-
-        # --- KONIEC ROZDANIA: OBLICZANIE STRATY (LOSS) ---
+        # --- TRENING (PO ZAKOŃCZENIU ROZDANIA) ---
+        optimizer.zero_grad()
+        total_policy_loss = torch.tensor(0.0, device=device)
+        updates_count = 0
         
-        total_loss = 0
-        rewards_summary = []
+        for pid in learning_ids:
+            agent = agents[pid]
+            # Upewniamy się, że to agent uczący się
+            if not isinstance(agent, DeepAgent): 
+                continue
+            
+            # Jeśli agent spasował od razu (np. BB w walkowerze), może nie mieć historii
+            if not agent.log_probs:
+                continue
 
-        # Iterujemy po każdym agencie AI z osobna
-        for pid in ai_agent_ids:
+            # 1. Oblicz nagrodę (skalowaną dla stabilności numerycznej)
             player_obj = env.players[pid]
-            memory = episode_memory[pid]
+            reward_val = calculate_reward(player_obj.stack, STACK_SIZE)
+            scaled_reward = reward_val / 100.0 
             
-            if not memory: 
-                continue # Gracz mógł spasować od razu i nie podjąć żadnej decyzji (np. był na BB i wszyscy spasowali)
+            # 2. Oblicz Loss: Suma(-log_prob * reward)
+            # Tworzymy listę strat dla każdej decyzji w tym epizodzie
+            loss_list = []
+            for log_prob in agent.log_probs:
+                # Minus, bo gradient ascent -> gradient descent
+                loss_list.append(-log_prob * scaled_reward)
+            
+            if loss_list:
+                step_loss = torch.stack(loss_list).sum()
+                total_policy_loss += step_loss
+                updates_count += 1
 
-            # 1. Nagroda dla TEGO konkretnego gracza
-            raw_reward = calculate_reward(player_obj, initial_stacks[pid])
-            normalized_reward = raw_reward / 100.0
-            rewards_summary.append(raw_reward)
-            
-            # 2. Strata dla TEGO gracza
-            player_loss = []
-            for log_prob in memory:
-                player_loss.append(-log_prob * normalized_reward)
-            
-            if player_loss:
-                # Sumujemy stratę tego gracza do wspólnego worka
-                total_loss += torch.stack(player_loss).sum()
-
-        # Aktualizacja wspólnej sieci (jeśli ktokolwiek grał)
-        if isinstance(total_loss, torch.Tensor):
-            optimizer.zero_grad()
-            total_loss.backward()
+        # 3. Aktualizacja wag (Backpropagation)
+        if updates_count > 0:
+            total_policy_loss.backward()
             optimizer.step()
 
-        # Logowanie
+        # --- LOGOWANIE ---
         if episode % 50 == 0:
-            avg_gain = sum(rewards_summary) / len(rewards_summary) if rewards_summary else 0
-            loss_val = total_loss.item() if isinstance(total_loss, torch.Tensor) else 0
-            print(f"Epizod {episode}: Śr. wynik AI: {avg_gain:.1f}$, Loss: {loss_val:.4f}")
+            # Wyciągamy wartość liczbową z tensora lossa dla czytelności
+            loss_val = total_policy_loss.item()
+            print(f"Epizod {episode} | Loss: {loss_val:.4f}")
+            # Podgląd stacków
+            stack_str = ", ".join([f"P{p.id}:{int(p.stack)}" for p in env.players])
+            print(f"   Stacks: [{stack_str}]")
 
-    # Zapisz model (wystarczy zapisać shared_brain)
-    torch.save(shared_brain.state_dict(), "poker_6max_shared.pth")
-    print("Trening zakończony. Model zapisany.")
+    # Zapis modelu
+    torch.save(shared_model.state_dict(), "poker_ai_model.pth")
+    print("Trening zakończony.")
 
 if __name__ == "__main__":
     train()

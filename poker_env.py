@@ -1,7 +1,7 @@
 from numpy._typing._array_like import NDArray
 from numpy import floating
 from numpy._typing._nbit_base import _32Bit
-from typing import Any, Literal, Self
+from typing import Any, Literal, Self, TypeAlias
 
 import numpy as np
 from card import Card
@@ -9,6 +9,8 @@ import settings
 from deck import Deck
 from player import Player
 import evaluator
+
+PlayerAction: TypeAlias = tuple[int, float]
 
 class PokerEnv:
     def __init__(self, players_data, initial_stack=1000.0, sb=settings.SB, bb=settings.BB, chip_step=5.0, debug = False) -> None:
