@@ -46,10 +46,10 @@ class PokerEnv:
         self.current_player_idx: int = 0
         self.min_raise: float = 0.0
 
-        # --- ZMIANA OBS_DIM (Teraz jeszcze większy) ---
+        # --- CHANGE OBS_DIM (Now even larger) ---
         # 52 (Hero) + 52 (Board) + Opponents + Global 
         # + 9 (Hand Category One-Hot) 
-        # + 5 (Exact Card Ranks Normalized) <--- NOWOŚĆ
+        # + 5 (Exact Card Ranks Normalized) <--- NEW
         self.obs_dim: int = (
             settings.N_CARDS + settings.N_CARDS +
             ((settings.MAX_SEATS - 1) * 4 + 3) + 

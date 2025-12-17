@@ -31,15 +31,15 @@ class PokerNet(nn.Module):
     def __init__(self, input_dim, n_actions=3):
         super(PokerNet, self).__init__()
         
-        # Warstwy ukryte (512 -> 512 -> 256)
+        # Hidden layers (512 -> 512 -> 256)
         self.fc1 = nn.Linear(input_dim, 512)
         self.fc2 = nn.Linear(512, 512)
         self.fc3 = nn.Linear(512, 256)
         
-        # Głowica Q-Values (przewiduje wartość dla każdej akcji)
+        # Q-Values head (predicts value for each action)
         self.q_head = nn.Linear(256, n_actions)
         
-        # Głowica Slidera (dla kompatybilności, w DQN rzadziej używana)
+        # Slider head (rarely used in standard DQN, kept for compatibility)
         self.slider_head = nn.Linear(256, 1)
 
     def forward(self, x):
@@ -58,36 +58,36 @@ class DeepAgent(Agent):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # self.device = torch.device("cpu")
         
-        # Inicjalizacja sieci
+        # Network initialization
         if shared_net is not None:
             self.net = shared_net
         else:
             self.net = PokerNet(input_dim).to(self.device)
             
-            # Ładowanie wag (jeśli podano ścieżkę)
+            # Load weights (if path is provided)
             if model_path:
                 try:
                     self.net.load_state_dict(torch.load(model_path, map_location=self.device))
-                    self.net.eval() # Tryb ewaluacji (wyłącza dropout, batchnorm itp.)
-                    print(f"DeepAgent {agent_id}: Model loaded form {model_path}")
+                    self.net.eval() # Evaluation mode (disables dropout, batchnorm, etc.)
+                    print(f"DeepAgent {agent_id}: Model loaded from {model_path}")
                 except Exception as e:
                     print(f"DeepAgent {agent_id}: Could not load model from {model_path}. Starting fresh. Error: {e}")
 
     def get_action(self, observation, legal_moves=None):
         """
-        Wybiera najlepszą akcję (Greedy) na podstawie Q-Values.
-        Używane podczas gry (nie treningu).
+        Selects the best action (Greedy) based on Q-Values.
+        Used during gameplay (not training).
         """
         obs_tensor = torch.FloatTensor(observation).to(self.device).unsqueeze(0)
         
         with torch.no_grad():
             q_values, slider_val = self.net(obs_tensor)
         
-        # Wybieramy akcję z największą wartością Q (argmax)
+        # Select action with the highest Q-value (argmax)
         action_idx = q_values.argmax(dim=1).item()
         slider_amt = slider_val.item()
         
-        # Logika slidera dla Raise (opcjonalnie wymuszamy min 50%, jeśli sieć daje za mało)
+        # Slider logic for Raise (optionally force min 50% if network output is too low)
         if action_idx == 2 and slider_amt < 0.5:
             slider_amt = 0.5
             
