@@ -56,6 +56,7 @@ class DeepAgent(Agent):
     def __init__(self, agent_id, input_dim, model_path=None, shared_net=None):
         super().__init__(agent_id)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # self.device = torch.device("cpu")
         
         # Inicjalizacja sieci
         if shared_net is not None:

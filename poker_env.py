@@ -19,6 +19,7 @@ class PokerEnv:
         self.bb_amount: float = float(bb)
         self.chip_step: float = float(chip_step)
         self.debug: bool = debug
+        self.observers = []  # List of callbacks for UI/Logging
         
         self.players: list[Player] = []
         self.starting_stacks = {}
@@ -56,6 +57,34 @@ class PokerEnv:
             5 
         )
 
+    def add_observer(self, callback):
+        """Register a callback (func) that accepts (event_name, data_dict)."""
+        self.observers.append(callback)
+
+    def _notify(self, event: str, data: dict = None):
+        if data is None: data = {}
+        # Snapshot basic state for the UI
+        state_snapshot = {
+            "pot": self.pot,
+            "community_cards": [str(c) for c in self.community_cards],
+            "stage": self.stage,
+            "current_player": self.current_player_idx,
+            "dealer": self.dealer_pos,
+            "players": [
+                {
+                    "id": p.id,
+                    "stack": p.stack,
+                    "bet": p.current_bet,
+                    "active": p.is_active,
+                    "allin": p.is_allin,
+                    "cards": [str(c) for c in p.hand] if hasattr(p, 'hand') else []
+                }
+                for p in self.players
+            ]
+        }
+        full_data = {**state_snapshot, **data}
+        for obs in self.observers:
+            obs(event, full_data)
     def _round_to_chip(self, amount) -> float:
         if self.chip_step <= 0: return amount
         steps: int = round(amount / self.chip_step)
@@ -74,6 +103,8 @@ class PokerEnv:
         self.stage = 5
         winners_ids = evaluator.determine_winner(self)
         self._distribute_pot(winners_ids)
+
+        self._notify("showdown", {"winners": winners_ids})
         return winners_ids
 
     def step(self, action_type, action_amt_pct=0.0):
@@ -101,8 +132,11 @@ class PokerEnv:
                 amt = self._round_to_chip(raw_amt)
                 
                 new_raise_size = (player.current_bet + amt) - current_max_bet
-                if new_raise_size > self.min_raise: self.min_raise = new_raise_size
+
+
                 self._post_bet(player, amt)
+
+        self._notify("step", {"player_id": player.id, "action": action_type, "amount_pct": action_amt_pct})
 
         active_players = [p for p in self.players if p.is_active]
         if len(active_players) == 1: 
@@ -206,6 +240,8 @@ class PokerEnv:
 
         self.current_player_idx = first_action_idx
         self._ensure_active_player()
+
+        self._notify("new_round", {})
         return True
 
     def deal_next_stage(self):
@@ -217,7 +253,8 @@ class PokerEnv:
         for p in self.players: p.current_bet = 0.0
         self.min_raise = self.bb_amount
         self.current_player_idx = self._get_next_active_seat(self.dealer_pos) 
-        self._ensure_active_player()
+
+        self._notify("stage_change", {"new_stage": self.stage})
 
     def _get_next_active_seat(self, current_seat):
         for i in range(1, self.num_players):

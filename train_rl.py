@@ -13,7 +13,9 @@ from poker_env import PokerEnv
 import evaluator
 
 # --- KONFIGURACJA URZĄDZENIA ---
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # force cpu for stability if cuda fails
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu")
 print(f"Trening na urządzeniu: {device}")
 
 # --- HIPERPARAMETRY DQN ---
