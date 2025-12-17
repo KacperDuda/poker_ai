@@ -1,10 +1,27 @@
-import helpers
 import settings
 from poker_env import PokerEnv
 from player import Player
 import evaluator
-from helpers import conv_observation
 from agent import RandomAgent, DeepAgent 
+
+def conv_observation(obs_array):
+    n_cards = settings.N_CARDS 
+    
+    # 1. First vector (Hand)
+    hand_part = obs_array[:n_cards]
+    hand_str = "".join(['1' if x > 0.5 else '0' for x in hand_part])
+    
+    # 2. Second vector (Board)
+    if len(obs_array) >= 2 * n_cards:
+        board_part = obs_array[n_cards : 2*n_cards]
+        board_str = "".join(['1' if x > 0.5 else '0' for x in board_part])
+    else:
+        board_str = ""
+        
+    remaining_part = obs_array[2*n_cards:]
+    result_string = f"{hand_str}\n{board_str}\n{str(remaining_part)}"
+    
+    return result_string
 
 # Action constants
 ACTION_FOLD = 0

@@ -26,5 +26,5 @@ class Player:
         elif self.is_allin: status = "[ALL-IN]"
 
         hand_str = str(self.hand) if self.hand else "[]"
-        return f"P{self.id} {hand_str:<10}|{self.stack:>6.0f} zł |{self.total_wagered:>7.0f} zł |{self.current_bet:>7.0f} zł {status:>11}"
+        return f"P{self.id} {hand_str:<10}|{self.stack:>6.0f} $ |{self.total_wagered:>7.0f} $ |{self.current_bet:>7.0f} $ {status:>11}"
         

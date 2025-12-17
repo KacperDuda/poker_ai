@@ -8,29 +8,29 @@ from collections import deque, namedtuple
 from typing import Dict, List, Any
 from agent import PokerNet
 
-# Importujemy środowisko i ewaluator
+# Import environment and evaluator
 from poker_env import PokerEnv
 import evaluator
 
-# --- KONFIGURACJA URZĄDZENIA ---
+# --- DEVICE CONFIGURATION ---
     # force cpu for stability if cuda fails
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 device = torch.device("cpu")
-print(f"Trening na urządzeniu: {device}")
+print(f"Training on device: {device}")
 
-# --- HIPERPARAMETRY DQN ---
-BATCH_SIZE = 128          # Rozmiar paczki danych do treningu
-GAMMA = 0.99              # Współczynnik dyskontowania (jak ważna jest przyszłość)
-EPS_START = 1.0           # Epsilon początkowy (100% losowości/nauczyciela)
-EPS_END = 0.05            # Epsilon końcowy (5% losowości)
-EPS_DECAY = 30000         # Szybkość zanikania Epsilona
-TARGET_UPDATE = 500       # Co ile kroków aktualizujemy sieć Target
-LEARNING_RATE = 0.0001    # Szybkość uczenia sieci
-MEMORY_SIZE = 100000      # Rozmiar bufora pamięci
+# --- DQN HYPERPARAMETERS ---
+BATCH_SIZE = 128          # Training batch size
+GAMMA = 0.99              # Discount factor
+EPS_START = 1.0           # Initial Epsilon (100% random/teacher)
+EPS_END = 0.05            # Final Epsilon (5% random)
+EPS_DECAY = 30000         # Epsilon decay rate
+TARGET_UPDATE = 500       # Update Target Network every N steps
+LEARNING_RATE = 0.0001    # Learning rate
+MEMORY_SIZE = 100000      # Memory buffer size
 
 NORMALIZATION_FACTOR = 2000.0
 
-# Struktura do zapisu w pamięci - Ważna kolejność!
+# Memory structure - Order matters!
 Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
 
 class ReplayMemory(object):
@@ -38,18 +38,18 @@ class ReplayMemory(object):
         self.memory = deque([], maxlen=capacity)
 
     def push(self, *args):
-        """Zapisuje przejście do pamięci"""
+        """Save transition to memory"""
         self.memory.append(Transition(*args))
 
     def sample(self, batch_size):
-        """Pobiera losową próbkę z pamięci"""
+        """Sample random batch from memory"""
         return random.sample(self.memory, batch_size)
 
     def __len__(self):
         return len(self.memory)
 
 
-# --- NAUCZYCIEL (LOOSE STRATEGY) ---
+# --- TEACHER (LOOSE STRATEGY) ---
 def get_expert_action(player, community_cards, current_bet, max_bet_on_table):
     to_call = max_bet_on_table - current_bet
     can_check = (to_call <= 0.01)
@@ -80,53 +80,53 @@ def get_expert_action(player, community_cards, current_bet, max_bet_on_table):
     if can_check: return 1
     return 0
 
-# --- FUNKCJA TRENINGOWA (OPTEMIZACJA SIECI) ---
+# --- TRAINING FUNCTION (NETWORK OPTIMIZATION) ---
 def optimize_model(policy_net, target_net, memory, optimizer):
     if len(memory) < BATCH_SIZE:
         return 0.0
     
-    # Pobieramy losową paczkę z pamięci
+    # Sample random batch
     transitions = memory.sample(BATCH_SIZE)
-    # Transpozycja: zamiana listy przejść na krotkę list (stany, akcje, nagrody...)
+    # Transpose: convert list of transitions to tuple of lists (states, actions...)
     batch = Transition(*zip(*transitions))
 
-    # Maska stanów nie-końcowych (gdzie next_state nie jest None)
+    # Non-final state mask (where next_state is not None)
     non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), device=device, dtype=torch.bool)
     
     non_final_next_states = None
     if non_final_mask.sum() > 0:
         non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
 
-    # Konkatenacja tensorów
+    # Tensor concatenation
     state_batch = torch.cat(batch.state)
     action_batch = torch.cat(batch.action)
     reward_batch = torch.cat(batch.reward)
 
-    # 1. Obliczamy Q(s, a) z naszej obecnej sieci (Policy Net)
-    # gather wybiera wartości Q tylko dla akcji, które faktycznie podjęliśmy
+    # 1. Calculate Q(s, a) from current Policy Net
+    # gather selects Q values only for actions taken
     state_action_values = policy_net(state_batch)[0].gather(1, action_batch)
 
-    # 2. Obliczamy V(s') dla następnych stanów z sieci celowej (Target Net)
-    # Dla stanów końcowych V(s') = 0
+    # 2. Calculate V(s') for next states from Target Net
+    # For terminal states V(s') = 0
     next_state_values = torch.zeros(BATCH_SIZE, device=device)
     
     if non_final_next_states is not None:
         with torch.no_grad():
-            # Wybieramy max Q-value dla następnego stanu (zachłannie)
+            # Select max Q-value for next state (greedy)
             next_state_values[non_final_mask] = target_net(non_final_next_states)[0].max(1)[0]
 
-    # 3. Obliczamy Oczekiwane Q (Równanie Bellmana)
+    # 3. Calculate Expected Q (Bellman Equation)
     # Q_expected = reward + (gamma * max Q_next)
     expected_state_action_values = (next_state_values.unsqueeze(1) * GAMMA) + reward_batch
 
-    # 4. Obliczamy stratę (różnicę między naszym Q a oczekiwanym Q)
-    criterion = nn.SmoothL1Loss() # Huber Loss (odporny na outliery)
+    # 4. Calculate Loss (Diff between Q and Expected Q)
+    criterion = nn.SmoothL1Loss() # Huber Loss (outlier resistant)
     loss = criterion(state_action_values, expected_state_action_values)
 
-    # 5. Aktualizacja wag (Backpropagation)
+    # 5. Update weights (Backpropagation)
     optimizer.zero_grad()
     loss.backward()
-    torch.nn.utils.clip_grad_norm_(policy_net.parameters(), 1.0) # Zapobieganie wybuchom gradientów
+    torch.nn.utils.clip_grad_norm_(policy_net.parameters(), 1.0) # Prevent gradient explosion
     optimizer.step()
     
     return loss.item()
@@ -138,11 +138,11 @@ def train_dqn():
     
     n_actions = 3 
     
-    # Inicjalizacja sieci
+    # Network Initialization
     policy_net = PokerNet(env.obs_dim, n_actions).to(device)
     target_net = PokerNet(env.obs_dim, n_actions).to(device)
-    target_net.load_state_dict(policy_net.state_dict()) # Kopia wag
-    target_net.eval() # Target net nie trenuje się bezpośrednio
+    target_net.load_state_dict(policy_net.state_dict()) # Copy weights
+    target_net.eval() # Target net is not trained directly
 
     optimizer = optim.Adam(policy_net.parameters(), lr=LEARNING_RATE)
     memory = ReplayMemory(MEMORY_SIZE)
@@ -168,7 +168,7 @@ def train_dqn():
             betting_round_active = True
             while betting_round_active:
                 
-                # Logika końca rundy (uproszczona)
+                # Round end logic (simplified)
                 active_players = [p for p in env.players if p.is_active and not p.is_allin]
                 if len(active_players) <= 1:
                     betting_round_active = False
@@ -189,16 +189,16 @@ def train_dqn():
                     env._next_active_player()
                     continue
 
-                # --- RUCH AGENTA (0) ---
+                # --- AGENT MOVE (0) ---
                 if current_idx == 0:
                     state = env.get_observation(current_idx)
                     state_tensor = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
                     
-                    # Zapisujemy poprzedni krok do pamięci
+                    # Save previous step to memory
                     if last_state is not None:
-                        # POPRAWKA: Prawidłowa kolejność argumentów dla NamedTuple
+                        # FIX: Correct order for NamedTuple
                         # memory.push(state, action, next_state, reward)
-                        # Tutaj nagroda to 0.0, bo gra trwa.
+                        # Reward is 0.0 here as game continues
                         reward_placeholder = torch.tensor([[0.0]], device=device)
                         memory.push(last_state, last_action, state_tensor, reward_placeholder)
                         
@@ -211,12 +211,12 @@ def train_dqn():
                     
                     action_idx = 0
                     if random.random() < eps_threshold:
-                        # RUCH NAUCZYCIELA (Eksploracja)
+                        # TEACHER MOVE (Exploration)
                         player_obj = env.players[0]
                         max_bet_table = max(p.current_bet for p in env.players)
                         action_idx = get_expert_action(player_obj, env.community_cards, player_obj.current_bet, max_bet_table)
                     else:
-                        # RUCH SIECI (Eksploatacja)
+                        # NETWORK MOVE (Exploitation)
                         with torch.no_grad():
                             q_values, _ = policy_net(state_tensor)
                             action_idx = q_values.max(1)[1].item()
@@ -250,7 +250,7 @@ def train_dqn():
         if env.pot > 0 and len([p for p in env.players if p.is_active]) > 1:
              env.finalize_showdown() 
 
-        # --- NAGRODA KOŃCOWA ---
+        # --- FINAL REWARD ---
         if last_state is not None:
             raw_profit = env.players[0].stack - initial_stack
             reward_val = raw_profit / NORMALIZATION_FACTOR
@@ -260,17 +260,17 @@ def train_dqn():
             
             reward_tensor = torch.tensor([[reward_val]], device=device, dtype=torch.float32)
             
-            # Stan końcowy: next_state = None
+            # Final state: next_state = None
             memory.push(last_state, last_action, None, reward_tensor)
             
             optimize_model(policy_net, target_net, memory, optimizer)
             results_window.append(raw_profit)
 
-        # Aktualizacja Target Network
+        # Update Target Network
         if steps_done % TARGET_UPDATE == 0:
             target_net.load_state_dict(policy_net.state_dict())
 
-        # Logowanie
+        # Logging
         if episode % 100 == 0 and episode > 0:
             avg_gain = sum(results_window) / len(results_window)
             wins = len([r for r in results_window if r > 0])
