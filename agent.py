@@ -1,112 +1,93 @@
+import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.distributions as distributions
-import numpy as np
-from typing import List, Optional
 
-# Importujemy definicję typu z Twojego pliku środowiska
-# Dzięki temu IDE wie, że funkcja zwraca krotkę (int, float)
-from poker_env import PlayerAction 
-
-# --- 1. SIEĆ NEURONOWA (MÓZG) ---
-class PokerNetwork(nn.Module):
-    """
-    Sieć neuronowa.
-    Wejście: Tensor obserwacji (stan gry).
-    Wyjście: Logity akcji (co zrobić) oraz wartość suwaka (ile postawić).
-    """
-    def __init__(self, input_dim: int, hidden_dim: int = 128):
-        super(PokerNetwork, self).__init__()
-        
-        # Warstwy przetwarzające (Feature extraction)
-        self.fc1 = nn.Linear(input_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-        
-        # GŁOWICA 1: Decyzja dyskretna (Fold / Call / Raise)
-        self.action_head = nn.Linear(hidden_dim, out_features=3)
-        
-        # GŁOWICA 2: Decyzja ciągła (Bet Sizing - % z min-max)
-        self.slider_head = nn.Linear(hidden_dim, 1)
-
-    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """
-        Zwraca: (action_logits, slider_value)
-        """
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        
-        action_logits = self.action_head(x)
-        # Sigmoid zapewnia, że wartość jest zawsze między 0.0 a 1.0
-        slider_val = torch.sigmoid(self.slider_head(x))
-        
-        return action_logits, slider_val
-
-# --- 2. KLASY AGENTÓW ---
+# Agent definitions
 
 class Agent:
-    """Klasa bazowa."""
-    def __init__(self, agent_id: int):
+    def __init__(self, agent_id):
         self.id = agent_id
 
-    def get_action(self, observation: np.ndarray, legal_moves=None) -> PlayerAction:
-        """
-        Główna metoda interfejsu.
-        Musi przyjąć obserwację (numpy array) i zwrócić PlayerAction (int, float).
-        """
+    def get_action(self, observation, legal_moves=None):
         raise NotImplementedError
 
+# --- CLASSIC AGENTS ---
+
 class RandomAgent(Agent):
-    """Agent wykonujący losowe ruchy - do testów."""
-    def get_action(self, observation: np.ndarray, legal_moves=None) -> PlayerAction:
-        action_idx = np.random.choice([0, 1, 2])
-        amount = np.random.random() # float 0.0 - 1.0
+    def get_action(self, observation, legal_moves=None):
+        return random.choice([0, 1, 2]), random.random()
+
+class ConservativeAgent(Agent):
+    def get_action(self, observation, legal_moves=None):
+        roll = random.random()
+        if roll < 0.1: return 0, 0.0 # Fold
+        elif roll < 0.9: return 1, 0.0 # Call
+        else: return 2, 0.5 # Raise
+
+# --- LEARNING AGENT (DQN ARCHITECTURE) ---
+
+class PokerNet(nn.Module):
+    def __init__(self, input_dim, n_actions=3):
+        super(PokerNet, self).__init__()
         
-        # Jawne rzutowanie na typy proste, by pasowało do definicji PlayerAction
-        return int(action_idx), float(amount)
+        # Warstwy ukryte (512 -> 512 -> 256)
+        self.fc1 = nn.Linear(input_dim, 512)
+        self.fc2 = nn.Linear(512, 512)
+        self.fc3 = nn.Linear(512, 256)
+        
+        # Głowica Q-Values (przewiduje wartość dla każdej akcji)
+        self.q_head = nn.Linear(256, n_actions)
+        
+        # Głowica Slidera (dla kompatybilności, w DQN rzadziej używana)
+        self.slider_head = nn.Linear(256, 1)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+        
+        q_values = self.q_head(x)
+        slider_val = torch.sigmoid(self.slider_head(x))
+        
+        return q_values, slider_val
 
 class DeepAgent(Agent):
-    """
-    Agent RL używający sieci neuronowej.
-    Zbiera log_probs w self.log_probs dla algorytmu REINFORCE.
-    """
-    def __init__(self, agent_id: int, input_dim: int, shared_model: Optional[PokerNetwork] = None):
+    def __init__(self, agent_id, input_dim, model_path=None, shared_net=None):
         super().__init__(agent_id)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
-        # Współdzielenie modelu (Self-Play): Wszyscy agenci DeepAgent używają tej samej instancji sieci.
-        if shared_model:
-            self.net = shared_model
+        # Inicjalizacja sieci
+        if shared_net is not None:
+            self.net = shared_net
         else:
-            self.net = PokerNetwork(input_dim).to(self.device)
+            self.net = PokerNet(input_dim).to(self.device)
             
-        # Pamięć epizodu na logarytmy prawdopodobieństw (potrzebne do liczenia gradientu)
-        self.log_probs: List[torch.Tensor] = []
+            # Ładowanie wag (jeśli podano ścieżkę)
+            if model_path:
+                try:
+                    self.net.load_state_dict(torch.load(model_path, map_location=self.device))
+                    self.net.eval() # Tryb ewaluacji (wyłącza dropout, batchnorm itp.)
+                    print(f"DeepAgent {agent_id}: Model loaded form {model_path}")
+                except Exception as e:
+                    print(f"DeepAgent {agent_id}: Could not load model from {model_path}. Starting fresh. Error: {e}")
 
-    def get_action(self, observation: np.ndarray, legal_moves=None) -> PlayerAction:
-        # 1. Konwersja numpy -> tensor
+    def get_action(self, observation, legal_moves=None):
+        """
+        Wybiera najlepszą akcję (Greedy) na podstawie Q-Values.
+        Używane podczas gry (nie treningu).
+        """
         obs_tensor = torch.FloatTensor(observation).to(self.device).unsqueeze(0)
         
-        # 2. Przejście przez sieć
-        # Nie używamy torch.no_grad() tutaj, bo potrzebujemy gradientów w self.log_probs!
-        logits, slider_tensor = self.net(obs_tensor)
+        with torch.no_grad():
+            q_values, slider_val = self.net(obs_tensor)
         
-        # 3. Wybór akcji (Action Head)
-        probs = F.softmax(logits, dim=-1)
-        dist = distributions.Categorical(probs)
-        action_idx_tensor = dist.sample()
+        # Wybieramy akcję z największą wartością Q (argmax)
+        action_idx = q_values.argmax(dim=1).item()
+        slider_amt = slider_val.item()
         
-        # 4. Zapisanie log_prob do historii (kluczowe dla REINFORCE)
-        # To łączy obecny krok z późniejszą funkcją straty (Loss)
-        log_prob = dist.log_prob(action_idx_tensor)
-        self.log_probs.append(log_prob)
-        
-        # 5. Przygotowanie wyniku zgodnego z typem PlayerAction (int, float)
-        action_idx = action_idx_tensor.item()
-        slider_val = slider_tensor.item()
-        
-        return int(action_idx), float(slider_val)
-
-    def clear_memory(self):
-        """Czyści historię log_probs przed nowym rozdaniem."""
-        self.log_probs = []
+        # Logika slidera dla Raise (opcjonalnie wymuszamy min 50%, jeśli sieć daje za mało)
+        if action_idx == 2 and slider_amt < 0.5:
+            slider_amt = 0.5
+            
+        return action_idx, slider_amt
