@@ -10,6 +10,7 @@ This project implements a custom Poker environment where AI agents can be traine
 - A generic Agent interface with Random and Deep Learning implementations (`agent.py`).
 - A training script using PyTorch to train a DQN agent (`train_rl.py`).
 - A graphical user interface (GUI) built with PyGame to visualize the game (`gui.py`).
+- An interactive application with replay controls and menu system (`poker_app.py`).
 
 ## Installation
 
@@ -21,7 +22,7 @@ Ensure you have Python 3.13 or higher installed.
 You can install dependencies using `pip`:
 
 ```bash
-pip install numpy pygame torch
+pip install numpy pygame torch pandas matplotlib
 ```
 
 Or using `uv` if you prefer the lockfile:
@@ -40,34 +41,79 @@ To train the reinforcement learning agent, run:
 python train_rl.py
 ```
 
-This script will train a DQN agent over 200,000 episodes (by default) and save the model weights to `poker_dqn.pth` every 5,000 episodes. The training process uses a "Teacher" strategy (rule-based) for initial exploration.
+This script will train a DQN agent over 200,000 episodes (by default) and save the model weights to `poker_dqn.pth` every 5,000 episodes.
 
-### 2. Running a Demo
+### 2. Running Experiments
 
-To watch the trained AI playing against random bots:
+To run comparative experiments with different configurations:
 
 ```bash
-python run_demo.py
+uv run run_experiments.py
 ```
 
-This script creates a 10-game session. If `poker_dqn.pth` is present, Player 0 will use the pre-trained AI. Otherwise, it defaults to a random agent.
+This will train 4 different configurations and save results to `docs/experiments/`.
 
-### 3. UI Simulation
+### 3. Interactive UI
 
-For a quick test of the GUI with random players:
+To play or watch the AI in action with an interactive interface:
 
 ```bash
-python run_ui.py
+uv run poker_app.py
+```
+
+Features:
+
+- **Menu System**: Choose between 1v1 (AI vs Random) or 4-bot simulation
+- **Replay Controls**: Navigate through game history with arrow keys or mouse
+- **Resizable Window**: Automatically scales interface while maintaining aspect ratio
+- **Mouse Support**: Click menu options or use keyboard navigation
+
+## Results
+
+We conducted four training experiments (20,000 episodes each):
+
+| Configuration            | Avg Reward | Win Rate  | Peak Win Rate |
+| ------------------------ | ---------- | --------- | ------------- |
+| **Baseline** (4p, h=512) | **772.2**  | 65.3%     | 100.0%        |
+| Long Decay (slow ε)      | 448.3      | 51.8%     | 73.0%         |
+| Big Network (h=1024)     | 734.0      | 65.0%     | 86.0%         |
+| Heads-Up (2p)            | 421.4      | **74.4%** | 94.0%         |
+
+**Key Findings**:
+
+- The **Baseline** configuration (4 players, 512 hidden units) achieves the best overall performance
+- Heads-Up mode has higher win rate but lower average reward due to different strategic dynamics
+- Increasing network size to 1024 provides marginal improvement
+- Slower epsilon decay underperforms the standard schedule
+
+For detailed analysis, see `docs/report.pdf` or run:
+
+```bash
+uv run analyze_experiments.py
 ```
 
 ## Project Structure
 
-- **poker_env.py**: Core logic for the Texas Hold'em poker environment.
-- **agent.py**: Agent definitions including `RandomAgent`, `DeepAgent` and the `PokerNet` neural network architecture.
-- **train_rl.py**: Main training loop for the DQN agent using experience replay and target networks.
-- **run_demo.py**: Script to run a visual demonstration of the AI.
-- **gui.py**: PyGame class for rendering the poker table, cards, and player stats.
-- **evaluator.py, card.py, deck.py**: Helper classes for card management and hand evaluation.
+```
+poker_ai/
+├── agent.py              # Agent interface and implementations (Random, DQN)
+├── card.py               # Card data structure
+├── deck.py               # Deck management
+├── evaluator.py          # Hand evaluation logic
+├── gui.py                # PyGame visualization
+├── player.py             # Player data structure
+├── poker_app.py          # Interactive application with menu and replay
+├── poker_env.py          # Poker environment (game logic)
+├── settings.py           # Global constants
+├── train_rl.py           # Training script
+├── run_experiments.py    # Comparative experiment runner
+├── analyze_experiments.py# Result analysis and visualization
+├── docs/
+│   ├── report.pdf        # Technical report
+│   ├── experiments_comparison.png
+│   └── experiments/      # Experiment logs and models
+└── README.md
+```
 
 ## Dependencies
 

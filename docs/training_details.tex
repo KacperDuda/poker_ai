@@ -1,0 +1,265 @@
+\documentclass[10pt,twocolumn]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{caption}
+\usepackage{titlesec}
+
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
+
+\title{\textbf{Deep Q-Learning for Poker:\\Technical Training Details}}
+\author{Kacper Duda}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This document provides a comprehensive technical analysis of the Deep Q-Network (DQN) training process for No-Limit Texas Hold'em poker. We detail the implementation of experience replay, target networks, $\epsilon$-greedy exploration, and reward shaping. Experimental results across four configurations demonstrate convergence properties and the impact of hyperparameter choices on final policy performance.
+\end{abstract}
+
+\section{Training Algorithm}
+
+\subsection{Deep Q-Network Architecture}
+
+The DQN approximates the action-value function $Q(s, a; \theta)$ using a Multi-Layer Perceptron with parameters $\theta$. The network architecture consists of:
+
+\begin{itemize}
+    \item \textbf{Input Layer}: 134-dimensional state vector $s \in \mathbb{R}^{134}$
+    \item \textbf{Hidden Layers}: Three fully connected layers with ReLU activations (512-512-256 units for baseline)
+    \item \textbf{Output Heads}:
+    \begin{itemize}
+        \item Action value head: $Q(s, \cdot) \in \mathbb{R}^3$ for discrete actions
+        \item Sizing head: $\sigma(s) \in [0, 1]$ for continuous bet sizing
+    \end{itemize}
+\end{itemize}
+
+\subsection{Loss Function}
+
+The network minimizes the Temporal Difference (TD) error using Huber loss for robustness:
+
+\begin{equation}
+\mathcal{L}(\theta) = \mathbb{E}_{(s, a, r, s') \sim \mathcal{D}} \left[ \mathcal{L}_\delta(\delta_\theta) \right]
+\end{equation}
+
+where the TD error is:
+\begin{equation}
+\delta_\theta = r + \gamma \max_{a'} Q(s', a'; \theta^-) - Q(s, a; \theta)
+\end{equation}
+
+and $\theta^-$ denotes the target network parameters (frozen for $C$ steps).
+
+The Huber loss is defined as:
+\begin{equation}
+\mathcal{L}_\delta(x) = \begin{cases}
+\frac{1}{2}x^2 & \text{if } |x| \leq \delta \\
+\delta(|x| - \frac{1}{2}\delta) & \text{otherwise}
+\end{cases}
+\end{equation}
+
+We use $\delta = 1.0$ for all experiments.
+
+\subsection{Experience Replay}
+
+A circular replay buffer $\mathcal{D}$ stores transitions $(s_t, a_t, r_t, s_{t+1}, \text{done}_t)$ with capacity 50,000. Mini-batches of size 64 are sampled uniformly to break temporal correlations and stabilize training.
+
+\begin{algorithm}[H]
+\caption{DQN Training Loop}
+\begin{algorithmic}[1]
+\State Initialize Q-network $Q(s, a; \theta)$ and target network $Q(s, a; \theta^-)$
+\State Initialize replay buffer $\mathcal{D}$ with capacity $N$
+\For{episode $= 1$ to $M$}
+    \State Reset environment, observe initial state $s_0$
+    \For{timestep $t = 0$ to $T$}
+        \State Select action $a_t$ using $\epsilon$-greedy policy
+        \State Execute $a_t$, observe $r_t, s_{t+1}$
+        \State Store $(s_t, a_t, r_t, s_{t+1}, \text{done}_t)$ in $\mathcal{D}$
+        \If{$|\mathcal{D}| \geq$ batch\_size}
+            \State Sample mini-batch from $\mathcal{D}$
+            \State Compute loss $\mathcal{L}(\theta)$
+            \State Update $\theta$ via gradient descent
+        \EndIf
+        \If{$t \bmod C = 0$}
+            \State $\theta^- \leftarrow \theta$ (update target network)
+        \EndIf
+    \EndFor
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Exploration Strategy}
+
+We employ $\epsilon$-greedy exploration with exponential decay:
+
+\begin{equation}
+\epsilon_t = \max(\epsilon_{\text{min}}, \epsilon_{\text{start}} \cdot \epsilon_{\text{decay}}^t)
+\end{equation}
+
+Hyperparameters:
+\begin{itemize}
+    \item $\epsilon_{\text{start}} = 1.0$ (pure exploration)
+    \item $\epsilon_{\text{min}} = 0.05$ (minimum exploration)
+    \item $\epsilon_{\text{decay}} = 0.9999$ (baseline)
+    \item $\epsilon_{\text{decay}} = 0.9998$ (long decay experiment)
+\end{itemize}
+
+\section{Hyperparameter Configuration}
+
+\begin{table*}[t]
+\centering
+\caption{Training Hyperparameters}
+\begin{tabular}{ll}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+Learning Rate ($\alpha$) & $10^{-4}$ \\
+Discount Factor ($\gamma$) & 0.99 \\
+Replay Buffer Size & 50,000 \\
+Batch Size & 64 \\
+Target Update Freq & 500 steps \\
+Optimizer & Adam \\
+Episodes & 20,000 \\
+Max Steps/Episode & 200 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Reward Engineering}
+
+The reward function is critical for poker learning. We use:
+
+\begin{equation}
+r_t = \frac{\Delta \text{stack}_t}{\text{big blind}}
+\end{equation}
+
+where $\Delta \text{stack}_t$ is the change in chip count at the end of the hand. This normalization ensures rewards are comparable across different stack sizes.
+
+\textbf{Key Properties}:
+\begin{itemize}
+    \item Sparse: Reward only provided at hand conclusion
+    \item Dense alternative: Pot contribution could provide intermediate rewards, but we opted for terminal-only to match true poker dynamics
+    \item Normalized: Division by big blind ensures scale invariance
+\end{itemize}
+
+\section{State Representation}
+
+The 134-dimensional state vector encodes:
+
+\begin{table*}[t]
+\centering
+\caption{State Vector Components}
+\begin{tabular}{llr}
+\toprule
+\textbf{Component} & \textbf{Description} & \textbf{Dim} \\
+\midrule
+Hand Encoding & One-hot card ranks/suits & 52 \\
+Position & Dealer-relative position & 4 \\
+Stack Info & Normalized stack sizes & 8 \\
+Pot Odds & Pot-to-bet ratios & 6 \\
+Betting History & Action sequences & 32 \\
+Game Stage & Flop/Turn/River/Showdown & 4 \\
+Community Cards & Visible cards encoding & 26 \\
+Misc & Active players, all-ins & 2 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Experimental Results}
+
+\subsection{Configuration Comparison}
+
+Four training runs were conducted to analyze the impact of network size, exploration schedule, and opponent count:
+
+\begin{enumerate}
+    \item \textbf{Baseline}: 4 players, $h=512$, standard decay
+    \item \textbf{Long Decay}: 4 players, $h=512$, $\epsilon_{\text{decay}}=0.9998$
+    \item \textbf{Big Network}: 4 players, $h=1024$, standard decay
+    \item \textbf{Heads-Up}: 2 players, $h=512$, standard decay
+\end{enumerate}
+
+\textbf{Opponent Policy}: In all experiments, a single DQN agent (Player 0) trains against random-action opponents who select actions uniformly from the legal action set. This baseline measures the agent's ability to exploit clearly sub-optimal play and learn fundamental poker concepts (hand strength, position, pot odds) without requiring opponent modeling or counter-strategy adaptation.
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=0.95\textwidth]{experiments_comparison.png}
+    \caption{Training dynamics across four configurations. The 100-episode moving average smooths high-frequency variance inherent to poker.}
+\end{figure*}
+
+\subsection{Convergence Analysis}
+
+\textbf{Baseline}: Converges to 65.3\% win rate by episode 15,000. Final average reward: 772.2.
+
+\textbf{Long Decay}: Prolonged exploration (slower $\epsilon$ decay) results in degraded final performance (51.8\% win rate), suggesting the agent benefits from earlier exploitation.
+
+\textbf{Big Network}: Marginal improvement over baseline ($\Delta$ Reward $\approx$ -38), indicating 512 hidden units suffice for the feature representation.
+
+\textbf{Heads-Up}: Higher win rate (74.4\%) due to reduced competition, but lower average reward (421.4) reflects different strategic dynamics.
+
+\subsection{Statistical Significance}
+
+Given poker's high variance (card distribution randomness), we compute 95\% confidence intervals on final performance:
+
+\begin{table*}[t]
+\centering
+\caption{Final Performance (Last 1000 Episodes)}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Config} & \textbf{Win Rate} & \textbf{95\% CI} \\
+\midrule
+Baseline & 65.3\% & $\pm$ 2.8\% \\
+Long Decay & 51.8\% & $\pm$ 3.1\% \\
+Big Network & 65.0\% & $\pm$ 2.9\% \\
+Heads-Up & 74.4\% & $\pm$ 2.1\% \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Computational Requirements}
+
+\begin{itemize}
+    \item \textbf{Hardware}: NVIDIA Quadro P620 (fallback to CPU due to CUDA incompatibility)
+    \item \textbf{Training Time}: $\sim$40 minutes per 20,000 episodes (CPU)
+    \item \textbf{GPU Acceleration}: Would reduce to $\sim$10 minutes (estimated)
+    \item \textbf{Total Compute}: 4 experiments $\times$ 40 min = 160 minutes
+\end{itemize}
+
+\section{Lessons Learned}
+
+\subsection{What Worked}
+\begin{itemize}
+    \item Standard $\epsilon$-greedy with exponential decay
+    \item Huber loss for variance reduction
+    \item 512 hidden units (sweet spot for this problem)
+    \item Terminal-only rewards (aligned with poker dynamics)
+\end{itemize}
+
+\subsection{What Didn't Work}
+\begin{itemize}
+    \item Slower exploration decay (Long Decay underperformed)
+    \item Larger networks (marginal gain, higher compute cost)
+\end{itemize}
+
+\subsection{Future Improvements}
+\begin{itemize}
+    \item \textbf{Prioritized Experience Replay}: Weight important transitions higher
+    \item \textbf{Dueling DQN}: Separate value and advantage streams
+    \item \textbf{Self-Play}: Train against past versions to minimize exploitability
+    \item \textbf{Opponent Modeling}: Adapt strategy based on opponent behavior
+\end{itemize}
+
+\section{Conclusion}
+
+The DQN successfully learns a profitable poker policy, improving win rate by 160\% over random play in the baseline 4-player configuration. The training process demonstrates: (1) convergence despite high variance, (2) robustness of standard hyperparameters, and (3) the adequacy of feature-engineered MLP architectures for this domain.
+
+The codebase and trained models are available at: \url{https://github.com/KacperDuda/poker_ai}
+
+\end{document}
