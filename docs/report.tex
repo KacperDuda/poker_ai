@@ -1,0 +1,172 @@
+\documentclass[12pt, a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath, amssymb}
+\usepackage{hyperref}
+\usepackage{natbib}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{booktabs}
+
+% Geometry settings
+\geometry{
+    margin=1in
+}
+
+% Code listing settings
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+% Title parameters
+\title{\textbf{Poker Solver Implementation using Reinforcement Learning}}
+\author{
+    Kacper Duda, Marek Dzierżawa, Kacper Karabasz\\
+    \textit{AGH University of Krakow} 
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\begin{abstract}
+    This report presents the design and implementation of a Poker Solver based on Reinforcement Learning (RL). We address the challenge of imperfect information games, specifically No-Limit Texas Hold'em. The proposed solution utilizes a Deep Q-Network (DQN) to approximate optimal strategies. We demonstrate the agent's performance against baseline heuristics and discuss the convergence properties of the model.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+Poker is a quintessential game of imperfect information, presenting unique challenges for Artificial Intelligence compared to perfect information games like Chess or Go. The goal of this project is to develop a Poker Solver capable of playing No-Limit Texas Hold'em (NLHE) at a high level.
+
+\subsection{Project Goal}
+The primary objective is to implement a Reinforcement Learning agent that learns to play poker in a simulated environment. Key sub-goals include:
+\begin{itemize}
+    \item Modeling the Poker environment and game state.
+    \item Implementing the Deep Q-Network (DQN) algorithm.
+    \item Analysing the agent's learning progress and final strategy.
+\end{itemize}
+
+\section{Theoretical Background}
+\label{sec:theory}
+\subsection{Reinforcement Learning}
+Reinforcement Learning (RL) is a subfield of machine learning where an agent learns to make decisions by performing actions in an environment and receiving rewards. In our case, the agent learns a policy $\pi(s)$ that maps states to actions to maximize the expected cumulative reward (chips won). We utilize Q-Learning, which estimates the value $Q(s, a)$ of taking action $a$ in state $s$.
+
+\subsection{Game Theory in Poker}
+Poker is a zero-sum game with imperfect information. Optimality is often defined by the Nash Equilibrium, where no player can deviate from their strategy to gain an advantage. While exact Nash Equilibrium is hard to compute for full NLHE, RL approaches aim to approximate a robust exploitability-minimizing strategy.
+
+\section{Methodology}
+\label{sec:method}
+This section details the system architecture and the learning algorithm.
+
+\subsection{Environment}
+We implemented a custom Poker Environment compliant with the Gym interface. The simulation handles the complex rules of Texas Hold'em, including betting rounds, side pots, and hand evaluation.
+
+\begin{itemize}
+    \item \textbf{State Space}: The state is represented by a vector of approximately 134 dimensions, including:
+    \begin{itemize}
+        \item \textbf{Hero Cards}: One-hot encoding of the agent's hole cards.
+        \item \textbf{Community Cards}: One-hot encoding of the board.
+        \item \textbf{Opponent Stats}: Stack sizes, current bets, and active status normalized.
+        \item \textbf{Global Stats}: Pot size and dealer position.
+        \item \textbf{Hand Strength}: Additional features pre-calculated by an evaluator (current hand rank, kickers) to speed up learning.
+    \end{itemize}
+    
+    \item \textbf{Action Space}: The discrete action space consists of 3 primary moves:
+    \begin{enumerate}
+        \item \textbf{Fold} (0)
+        \item \textbf{Check/Call} (1)
+        \item \textbf{Raise} (2) - The raise amount is controlled by a continuous output (slider) or fixed fractions in simplified versions.
+    \end{enumerate}
+
+    \item \textbf{Reward Function}: The reward is sparse, provided only at the end of the hand. It is proportional to the change in the agent's stack (Chip Profit/Loss), normalized to fit within $[-1, 1]$.
+\end{itemize}
+
+\subsection{Model Architecture}
+The agent uses a Deep Neural Network (PokerNet) to approximate the Q-function. The architecture consists of fully connected layers with interactions as shown below.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{model_architecture.png}
+    \caption{Neural Network Architecture used for the DQN Agent.}
+    \label{fig:arch}
+\end{figure}
+
+The network parameters are:
+\begin{itemize}
+    \item Input Layer: Matched to State Dimension.
+    \item Hidden Layers: 512 $\to$ 512 $\to$ 256 units (ReLU activation).
+    \item Output Heads: 
+    \begin{itemize}
+        \item Q-Values: 3 units (Linear).
+        \item Slider: 1 unit (Sigmoid) determining raise percentage.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Algorithm}
+We trained the agent using the Deep Q-Network (DQN) algorithm with Experience Replay and Target Network stablisation.
+\begin{itemize}
+    \item \textbf{Exploration}: Epsilon-Greedy strategy, decaying from $\epsilon=1.0$ (random) to $\epsilon=0.05$.
+    \item \textbf{Teacher Heuristic}: During the exploration phase, the agent occasionally consults a rule-based "Teacher" to guide it towards sensible actions (e.g., not folding Aces pre-flop).
+    \item \textbf{Optimization}: Adam optimizer with Mean Squared Error loss on the Bellman equation.
+\end{itemize}
+
+\section{Experiments and Results}
+
+\subsection{Training Setup}
+The model was trained for 2,000 episodes against random opponents. 
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{learning_curve.png}
+    \caption{Learning Curve over 2,000 Episodes. Blue line represents win rate (\%), Red line represents average reward.}
+    \label{fig:learning}
+\end{figure}
+
+As seen in Figure \ref{fig:learning}, the agent starts with high variance. The win rate fluctuates as the agent explores different strategies. In the short training run, convergence is not fully achieved, but the agent begins to outperform pure random play in certain metrics.
+
+\subsection{User Interface}
+A PyGame-based UI was developed to visualize the agent's gameplay and internal decision metrics.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{ui_screenshot.png}
+    \caption{Screenshot of the Poker AI Graphical Interface.}
+    \label{fig:ui}
+\end{figure}
+
+\section{Summary}
+We successfully implemented a functional Poker RL environment and a DQN agent. The architecture supports basic gameplay and demonstrates the potential for learning. Future work involves implementing Counterfactual Regret Minimization (CFR) for better approximation of Nash Equilibrium and scaling the training to millions of hands on a GPU cluster.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}
