@@ -90,22 +90,122 @@ class PokerEnv:
         steps: int = round(amount / self.chip_step)
         return steps * self.chip_step
 
-    def _distribute_pot(self, winners_ids) -> None:
-        if not winners_ids: return
-        split_amount = self.pot / len(winners_ids)
-        for w_id in winners_ids:
-            winner = next((p for p in self.players if p.id == w_id), None)
-            if winner: winner.stack += split_amount
+    def _distribute_pot(self, winners_ids=None) -> None:
+        """
+        Distributes the pot correctly handling side-pots for all-in players.
+        Uses 'total_wagered' to determine eligibility.
+        """
+        # 1. Identify all candidates (Active + All-in at showdown)
+        # Note: self.players includes everyone. We filter for those who put money in.
+        
+        candidates = [p for p in self.players if p.total_wagered > 0 and (p.is_active or p.is_allin)]
+        
+        if not candidates:
+            # Should not happen, but if so, return pot to... the house? or button?
+            return 
+
+        # 2. Sort unique wager amounts to create pot "levels"
+        # We process the pot from bottom up. 
+        # e.g. P1(100), P2(1000), P3(1000). unique levels: [100, 1000]
+        # Level 1 (0-100): P1, P2, P3 compete. Pot size = 100*3 = 300. P1 Wins.
+        # Level 2 (100-1000): P2, P3 compete. Pot size = 900*2 = 1800. P2 Wins.
+        
+        unique_wagers = sorted(list(set(p.total_wagered for p in candidates)))
+        
+        current_level_base = 0.0
+        
+        for level_cap in unique_wagers:
+            contribution_from_this_level = level_cap - current_level_base
+            if contribution_from_this_level <= 0.001: 
+                continue
+                
+            # Who contributed to this level?
+            contributors = [p for p in candidates if p.total_wagered >= level_cap]
+            if not contributors: 
+                continue
+            
+            # Pot size for this slice
+            # Everyone who wagered 'level_cap' or more contributes 'contribution_from_this_level'
+            # (Note: players who wagered LESS than level_cap but MORE than current_level_base 
+            # are also mathematically part of a lower side pot, but our `unique_wagers` iteration handles valid caps.
+            # Wait, players with wages BETWEEN levels? unique_wagers covers ALL unique amounts.
+            # So if P4 wagered 500 (between 100 and 1000), 500 would be in the list.
+            
+            pot_slice = 0.0
+            eligible_for_win = []
+            
+            for p in self.players: # iterate all original players to catch folded money too?
+                 # Even folded players contributed to the pot at this level!
+                 # But they are NOT eligible to win.
+                 # Contribution is: min(max(0, p.total_wagered - current_level_base), contribution_from_this_level)
+                 
+                 effective_contribution = min(max(0.0, p.total_wagered - current_level_base), contribution_from_this_level)
+                 pot_slice += effective_contribution
+                 
+                 # Eligibility check: Must be in 'candidates' (active/allin) AND have wagered enough
+                 if p in candidates and p.total_wagered >= level_cap:
+                     eligible_for_win.append(p)
+
+            if pot_slice < 0.01:
+                current_level_base = level_cap
+                continue
+
+            # Determine winner for this slice
+            # We need to re-evaluate best hand among ONLY 'eligible_for_win'
+            if not eligible_for_win:
+                # Everyone folded who reached this level? Refund to highest contributor?
+                # In PokerEnv, unexpected. Give to dealer/active.
+                # Just leave in pot? No, distribute to someone.
+                # Assuming one player usually wins walkover before this.
+                pass
+            else:
+                 # Evaluate hands
+                 best_rank = -1
+                 slice_winners = []
+                 
+                 # If we have pre-calculated winners_ids (main pot), we can't reuse blindly because side pot might exclude main winner.
+                 # So we evaluate locally.
+                 
+                 player_scores = []
+                 for p in eligible_for_win:
+                     score = evaluator.get_best_hand(p.hand, self.community_cards)
+                     player_scores.append((p, score))
+                 
+                 # Sort by score (descending, assuming higher tuple is better)
+                 # evaluator returns (rank_int, kickers_tuple). Python tuple comparison works nicely.
+                 # rank_int: 8 (StrFlush) > ... > 0 (HighCard).
+                 
+                 player_scores.sort(key=lambda x: x[1], reverse=True)
+                 
+                 best_score = player_scores[0][1]
+                 slice_winners = [p for p, s in player_scores if s == best_score]
+                 
+                 # Distribute 'pot_slice' equally among 'slice_winners'
+                 share = pot_slice / len(slice_winners)
+                 for w in slice_winners:
+                     w.stack += share
+                     
+            current_level_base = level_cap
+
+        # Reset global pot and wagered
         self.pot = 0.0
+        for p in self.players:
+            p.total_wagered = 0.0
 
     def finalize_showdown(self):
         self.community_cards.extend(self.deck.draw(5 - len(self.community_cards)))
         self.stage = 5
-        winners_ids = evaluator.determine_winner(self)
-        self._distribute_pot(winners_ids)
+        # winners_ids = evaluator.determine_winner(self) # Deprecated for distribution, used for logging only
+        # We let _distribute_pot calculate per-side-pot winners.
+        
+        # For logging, we'll just log the "Survivor" or best overall hand
+        active = [p for p in self.players if p.is_active or p.is_allin]
+        best_p = active[0].id if active else -1
+        
+        self._distribute_pot() 
 
-        self._notify("showdown", {"winners": winners_ids})
-        return winners_ids
+        self._notify("showdown", {"winners": "calculated_per_pot"})
+        return []
 
     def step(self, action_type, action_amt_pct=0.0):
         player: Player = self.players[self.current_player_idx]
@@ -131,8 +231,7 @@ class PokerEnv:
                 raw_amt = amount_to_add_min + (amount_to_add_max - amount_to_add_min) * action_amt_pct
                 amt = self._round_to_chip(raw_amt)
                 
-                new_raise_size = (player.current_bet + amt) - current_max_bet
-
+                # new_raise_size = (player.current_bet + amt) - current_max_bet
 
                 self._post_bet(player, amt)
 
@@ -140,9 +239,31 @@ class PokerEnv:
 
         active_players = [p for p in self.players if p.is_active]
         if len(active_players) == 1: 
-            winner = active_players[0]
-            self._distribute_pot([winner.id])
-            return 0, True, {"winner": winner.id, "method": "walkover"}
+            # Walkover - check if anyone is all-in?
+            # If others are all-in, we MUST Showdown.
+            # If no one is all-in (just folded), then it is a clean walkover.
+            allin_players = [p for p in self.players if p.is_allin and p.is_active] # is_active is usually True for allins in this env? 
+            # implementation detail: usually all-in flag is separate. p.is_active might be true or false.
+            # Let's check lines 269/289: when allin, is_active stays True.
+            
+            # Correct logic:
+            # If remaining active players + allin players > 1, we continue (to showdown or next street)
+            # If only 1 player has chips and cards, and others are Folded (not allin), he wins pot.
+            
+            contestants = [p for p in self.players if (p.is_active or p.is_allin) and p.stack >= 0] 
+            # Actually simplest check:
+            # If everyone else FOLDED, then 1 winner.
+            # If someone is All-IN, they haven't folded.
+            
+            not_folded = [p for p in self.players if p.is_active or p.is_allin] # Assuming Folds set is_active=False AND is_allin=False?
+            # Look at FOLD logic: player.is_active = False. is_allin remains?
+            # We need to ensure FOLD clears is_allin if it was set? No, you can't fold if you are all-in usually (unless valid action).
+            # But here standard FOLD sets is_active=False.
+            
+            if len(not_folded) == 1:
+                winner = not_folded[0]
+                self._distribute_pot() # Will identify just one candidate
+                return 0, True, {"winner": winner.id, "method": "walkover"}
 
         self._next_active_player()
         return 0, False, {}
