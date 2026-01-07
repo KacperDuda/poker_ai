@@ -387,6 +387,7 @@ class PokerEnv:
         player.stack -= amount
         player.current_bet += amount
         player.total_wagered += amount
+        self.pot += amount
         if player.stack <= 0.01: player.is_allin = True
 
     def _calculate_positions(self, active_count):
