@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2025.12.19)  7 JAN 2026 11:13
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2025.12.19)  7 JAN 2026 13:02
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -367,24 +367,24 @@ File: l3backend-pdftex.def 2024-05-08 L3 backend support: PDF output (pdfTeX)
 (./report.aux)
 \openout1 = `report.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 34.
-LaTeX Font Info:    ... okay on input line 34.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 34.
-LaTeX Font Info:    ... okay on input line 34.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 34.
-LaTeX Font Info:    ... okay on input line 34.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 34.
-LaTeX Font Info:    ... okay on input line 34.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 34.
-LaTeX Font Info:    ... okay on input line 34.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 34.
-LaTeX Font Info:    ... okay on input line 34.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 34.
-LaTeX Font Info:    ... okay on input line 34.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 34.
-LaTeX Font Info:    ... okay on input line 34.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 34.
-LaTeX Font Info:    ... okay on input line 34.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 48.
+LaTeX Font Info:    ... okay on input line 48.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 48.
+LaTeX Font Info:    ... okay on input line 48.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 48.
+LaTeX Font Info:    ... okay on input line 48.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 48.
+LaTeX Font Info:    ... okay on input line 48.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 48.
+LaTeX Font Info:    ... okay on input line 48.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 48.
+LaTeX Font Info:    ... okay on input line 48.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 48.
+LaTeX Font Info:    ... okay on input line 48.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 48.
+LaTeX Font Info:    ... okay on input line 48.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 48.
+LaTeX Font Info:    ... okay on input line 48.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
@@ -442,7 +442,7 @@ Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 4
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
-Package hyperref Info: Link coloring OFF on input line 34.
+Package hyperref Info: Link coloring OFF on input line 48.
 
 (./report.out) (./report.out)
 \@outlinefile=\write3
@@ -450,13 +450,13 @@ Package hyperref Info: Link coloring OFF on input line 34.
 
 Package caption Info: Begin \AtBeginDocument code.
 Package caption Info: End \AtBeginDocument code.
-LaTeX Font Info:    Trying to load font information for U+msa on input line 37.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 51.
 
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 37.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 51.
 
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
@@ -464,16 +464,16 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
 
 
-Underfull \hbox (badness 1137) in paragraph at lines 68--69
+Underfull \hbox (badness 1137) in paragraph at lines 82--83
 []\T1/cmr/bx/n/10 Action Value Head \T1/cmr/m/n/10 ($\OML/cmm/m/it/10 Q\OT1/cmr
 /m/n/10 (\OML/cmm/m/it/10 s; \OMS/cmsy/m/n/10 ^^A\OT1/cmr/m/n/10 ) \OMS/cmsy/m/
 n/10 2 \U/msb/m/n/10 R[]$\T1/cmr/m/n/10 ): Lin-
  []
 
-<model_architecture.png, id=45, 860.013pt x 570.933pt>
+<model_architecture.png, id=49, 860.013pt x 570.933pt>
 File: model_architecture.png Graphic file (type png)
 <use model_architecture.png>
-Package pdftex.def Info: model_architecture.png  used on input line 74.
+Package pdftex.def Info: model_architecture.png  used on input line 88.
 (pdftex.def)             Requested size: 235.51768pt x 156.34932pt.
 
 
@@ -483,21 +483,37 @@ c/dvips/cm-super/cm-super-t1.enc}
 
 {/usr/share/texmf/fonts/enc/dvips/cm-super/cm-super-ts1.enc} <./model_architect
 ure.png>]
-<experiments_comparison.png, id=71, 1003.5894pt x 709.4505pt>
+<experiments_comparison.png, id=75, 1003.5894pt x 709.4505pt>
 File: experiments_comparison.png Graphic file (type png)
 <use experiments_comparison.png>
-Package pdftex.def Info: experiments_comparison.png  used on input line 124.
+Package pdftex.def Info: experiments_comparison.png  used on input line 138.
 (pdftex.def)             Requested size: 464.64622pt x 328.46213pt.
 
 
-<ui_screenshot.png, id=74, 1405.25pt x 903.375pt>
+<ui_screenshot.png, id=78, 1405.25pt x 903.375pt>
 File: ui_screenshot.png Graphic file (type png)
 <use ui_screenshot.png>
-Package pdftex.def Info: ui_screenshot.png  used on input line 163.
+Package pdftex.def Info: ui_screenshot.png  used on input line 177.
 (pdftex.def)             Requested size: 235.51768pt x 151.39378pt.
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
+<plots/win_rate_epsilon.png, id=79, 867.24pt x 433.62pt>
+File: plots/win_rate_epsilon.png Graphic file (type png)
+<use plots/win_rate_epsilon.png>
+Package pdftex.def Info: plots/win_rate_epsilon.png  used on input line 187.
+(pdftex.def)             Requested size: 464.64622pt x 232.32515pt.
+<plots/average_profit.png, id=80, 867.24pt x 433.62pt>
+File: plots/average_profit.png Graphic file (type png)
+<use plots/average_profit.png>
+Package pdftex.def Info: plots/average_profit.png  used on input line 190.
+(pdftex.def)             Requested size: 464.64622pt x 232.32515pt.
+<plots/action_distribution.png, id=81, 867.24pt x 433.62pt>
+File: plots/action_distribution.png Graphic file (type png)
+<use plots/action_distribution.png>
+Package pdftex.def Info: plots/action_distribution.png  used on input line 197.
+
+(pdftex.def)             Requested size: 464.64622pt x 232.32515pt.
 
 
 [2]
@@ -506,20 +522,21 @@ LaTeX Warning: `h' float specifier changed to `ht'.
 
 [3
 
- <./experiments_comparison.png> <./ui_screenshot.png (PNG copy)>]
-(./report.aux)
+ <./experiments_comparison.png> <./ui_screenshot.png (PNG copy)>] [4 <./plots/w
+in_rate_epsilon.png> <./plots/average_profit.png>] [5 <./plots/action_distribut
+ion.png>] (./report.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
 Package rerunfilecheck Info: File `report.out' has not changed.
-(rerunfilecheck)             Checksum: 1E4BC5D488DEF1D96DD10E6BED60369A;1394.
+(rerunfilecheck)             Checksum: DFFC38E45C14BAEC7F5E1631B025C7B8;1588.
  ) 
 Here is how much of TeX's memory you used:
- 12544 strings out of 473197
- 193013 string characters out of 5718604
- 614199 words of memory out of 5000000
- 35622 multiletter control sequences out of 15000+600000
+ 12573 strings out of 473197
+ 193831 string characters out of 5718604
+ 615636 words of memory out of 5000000
+ 35646 multiletter control sequences out of 15000+600000
  572358 words of font info for 72 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  75i,10n,79p,707b,458s stack positions out of 10000i,1000n,20000p,200000b,200000s
@@ -537,10 +554,10 @@ xmf/fonts/type1/public/cm-super/sfbx1728.pfb></usr/share/texmf/fonts/type1/publ
 ic/cm-super/sfrm0700.pfb></usr/share/texmf/fonts/type1/public/cm-super/sfrm1000
 .pfb></usr/share/texmf/fonts/type1/public/cm-super/sfrm1200.pfb></usr/share/tex
 mf/fonts/type1/public/cm-super/sfti1200.pfb>
-Output written on report.pdf (3 pages, 915549 bytes).
+Output written on report.pdf (5 pages, 1246220 bytes).
 PDF statistics:
- 175 PDF objects out of 1000 (max. 8388607)
- 130 compressed objects within 2 object streams
- 26 named destinations out of 1000 (max. 500000)
- 96 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 196 PDF objects out of 1000 (max. 8388607)
+ 143 compressed objects within 2 object streams
+ 31 named destinations out of 1000 (max. 500000)
+ 119 words of extra memory for PDF output out of 10000 (max. 10000000)
 

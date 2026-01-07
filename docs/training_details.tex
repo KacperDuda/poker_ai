@@ -16,8 +16,21 @@
 \titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
 
 \title{\textbf{Deep Q-Learning for Poker:\\Technical Training Details}}
-\author{Kacper Duda}
 \date{\today}
+
+% Fix float page vertical alignment (push figures to top)
+\makeatletter
+\setlength{\@fptop}{0pt}
+\setlength{\@fpsep}{8pt plus 2pt minus 2pt}
+\setlength{\@fpbot}{0pt plus 1fil}
+\makeatother
+
+% Increase allowed fraction of page for top floats
+\renewcommand{\topfraction}{.9}
+\renewcommand{\dbltopfraction}{.9}
+\renewcommand{\textfraction}{.1}
+\renewcommand{\floatpagefraction}{.8}
+\renewcommand{\dblfloatpagefraction}{.8}
 
 \begin{document}
 
@@ -222,6 +235,27 @@ Heads-Up & 74.4\% & $\pm$ 2.1\% \\
 \bottomrule
 \end{tabular}
 \end{table*}
+
+\subsection{Detailed Training Dynamics}
+
+We further analyzed the training progression using granular logs from the latest run (see Figures \ref{fig:winrate}, \ref{fig:profit}, \ref{fig:actions}).
+
+\begin{figure*}[t!]
+    \centering
+    \includegraphics[width=0.95\textwidth]{plots/win_rate_epsilon.png}
+    \caption{Win Rate vs. Epsilon Decay. As exploration decreases, the win rate stabilizes above 50\%, demonstrating policy improvement.}
+    \vspace{1em}
+    \includegraphics[width=0.95\textwidth]{plots/average_profit.png}
+    \caption{Average Profit per 100 episodes showing trend towards positive expected value despite high variance.}
+    \label{fig:training_dynamics}
+\end{figure*}
+
+\begin{figure*}[t!]
+    \centering
+    \includegraphics[width=0.95\textwidth]{plots/action_distribution.png}
+    \caption{Evolution of Action Distribution. The agent learns to balance folding (red), calling (yellow), and raising (green) strategies over time.}
+    \label{fig:actions}
+\end{figure*}
 
 \section{Computational Requirements}
 

@@ -16,6 +16,7 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Experimental Setup}{2}{subsection.3.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Comparative Analysis}{2}{subsection.3.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Visual Verification}{2}{subsection.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Detailed Training Dynamics}{2}{subsection.3.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {4}Conclusion}{2}{section.4}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Comprehensive training comparison. \textbf  {Top row}: Smoothed learning curves (100-episode moving average) for average reward (left) and win rate (right). All agents start from random initialization and improve steadily, with Baseline and Big Network converging to similar final performance. \textbf  {Bottom row}: Final performance metrics bar chart (left) and summary statistics table (right), demonstrating the Baseline configuration's superiority in 4-player settings.}}{3}{figure.caption.3}\protected@file@percent }
 \newlabel{fig:experiments}{{2}{3}{Comprehensive training comparison. \textbf {Top row}: Smoothed learning curves (100-episode moving average) for average reward (left) and win rate (right). All agents start from random initialization and improve steadily, with Baseline and Big Network converging to similar final performance. \textbf {Bottom row}: Final performance metrics bar chart (left) and summary statistics table (right), demonstrating the Baseline configuration's superiority in 4-player settings}{figure.caption.3}{}}
@@ -23,4 +24,9 @@
 \newlabel{tab:results}{{2}{3}{Comparative Performance Metrics (Final 1000 Episodes)}{table.caption.4}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Environment Visualization with replay controls.}}{3}{figure.caption.5}\protected@file@percent }
 \newlabel{fig:ui}{{3}{3}{Environment Visualization with replay controls}{figure.caption.5}{}}
-\gdef \@abspage@last{3}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Win Rate vs. Epsilon Decay. As exploration decreases (orange curve), the win rate (blue) consistently rises above the random baseline (50\%), stabilizing around 60\&.}}{4}{figure.caption.6}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Average Profit per 100 episodes. Despite the high variance inherent to poker, the moving average (green) shows a clear positive trend.}}{4}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:training_stats_report}{{5}{4}{Average Profit per 100 episodes. Despite the high variance inherent to poker, the moving average (green) shows a clear positive trend}{figure.caption.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Evolution of Action Distribution. Initially dominated by random exploration, the policy converges to a strategic mix. Notice the sustained presence of 'Raise' (green) and 'Fold' (red), indicating the agent learned both aggression and discipline.}}{5}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:actions_report}{{6}{5}{Evolution of Action Distribution. Initially dominated by random exploration, the policy converges to a strategic mix. Notice the sustained presence of 'Raise' (green) and 'Fold' (red), indicating the agent learned both aggression and discipline}{figure.caption.7}{}}
+\gdef \@abspage@last{5}

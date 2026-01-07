@@ -31,6 +31,20 @@
 }
 \date{\today}
 
+% Fix float page vertical alignment (push figures to top)
+\makeatletter
+\setlength{\@fptop}{0pt}
+\setlength{\@fpsep}{8pt plus 2pt minus 2pt}
+\setlength{\@fpbot}{0pt plus 1fil}
+\makeatother
+
+% Increase allowed fraction of page for top floats
+\renewcommand{\topfraction}{.9}
+\renewcommand{\dbltopfraction}{.9}
+\renewcommand{\textfraction}{.1}
+\renewcommand{\floatpagefraction}{.8}
+\renewcommand{\dblfloatpagefraction}{.8}
+
 \begin{document}
 
 \maketitle
@@ -164,6 +178,26 @@ A custom UI (Fig. \ref{fig:ui}) validates the internal state tracking and decisi
     \caption{Environment Visualization with replay controls.}
     \label{fig:ui}
 \end{figure}
+
+\subsection{Detailed Training Dynamics}
+To validate the stability of our reinforcement learning approach, we analyzed the agent's behavior over a 200,000 episode training run.
+
+\begin{figure*}[t!]
+    \centering
+    \includegraphics[width=0.95\textwidth]{plots/win_rate_epsilon.png}
+    \caption{Win Rate vs. Epsilon Decay. As exploration decreases (orange curve), the win rate (blue) consistently rises above the random baseline (50\%), stabilizing around 60\&.}
+    \vspace{1em}
+    \includegraphics[width=0.95\textwidth]{plots/average_profit.png}
+    \caption{Average Profit per 100 episodes. Despite the high variance inherent to poker, the moving average (green) shows a clear positive trend.}
+    \label{fig:training_stats_report}
+\end{figure*}
+
+\begin{figure*}[t!]
+    \centering
+    \includegraphics[width=0.95\textwidth]{plots/action_distribution.png}
+    \caption{Evolution of Action Distribution. Initially dominated by random exploration, the policy converges to a strategic mix. Notice the sustained presence of 'Raise' (green) and 'Fold' (red), indicating the agent learned both aggression and discipline.}
+    \label{fig:actions_report}
+\end{figure*}
 
 \section{Conclusion}
 The proposed DQN architecture successfully parses the complex poker state space. Feature engineering significantly aids the MLP in recognizing hand strength. The Baseline configuration (4 players, 512 hidden units) achieves a 160\% improvement in win rate over random play, demonstrating effective policy learning despite poker's high inherent variance.

@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2025.12.19)  7 JAN 2026 11:14
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2025.12.19)  7 JAN 2026 13:02
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -389,24 +389,24 @@ File: l3backend-pdftex.def 2024-05-08 L3 backend support: PDF output (pdfTeX)
 (./training_details.aux)
 \openout1 = `training_details.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 22.
-LaTeX Font Info:    ... okay on input line 22.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 22.
-LaTeX Font Info:    ... okay on input line 22.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 22.
-LaTeX Font Info:    ... okay on input line 22.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 22.
-LaTeX Font Info:    ... okay on input line 22.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 22.
-LaTeX Font Info:    ... okay on input line 22.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 22.
-LaTeX Font Info:    ... okay on input line 22.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 22.
-LaTeX Font Info:    ... okay on input line 22.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 22.
-LaTeX Font Info:    ... okay on input line 22.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 22.
-LaTeX Font Info:    ... okay on input line 22.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 35.
+LaTeX Font Info:    ... okay on input line 35.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 35.
+LaTeX Font Info:    ... okay on input line 35.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 35.
+LaTeX Font Info:    ... okay on input line 35.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 35.
+LaTeX Font Info:    ... okay on input line 35.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 35.
+LaTeX Font Info:    ... okay on input line 35.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 35.
+LaTeX Font Info:    ... okay on input line 35.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 35.
+LaTeX Font Info:    ... okay on input line 35.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 35.
+LaTeX Font Info:    ... okay on input line 35.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 35.
+LaTeX Font Info:    ... okay on input line 35.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
@@ -464,7 +464,7 @@ Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 4
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
-Package hyperref Info: Link coloring OFF on input line 22.
+Package hyperref Info: Link coloring OFF on input line 35.
 
 (./training_details.out) (./training_details.out)
 \@outlinefile=\write3
@@ -472,32 +472,36 @@ Package hyperref Info: Link coloring OFF on input line 22.
 
 Package caption Info: Begin \AtBeginDocument code.
 Package caption Info: End \AtBeginDocument code.
-LaTeX Font Info:    Trying to load font information for U+msa on input line 25.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 38.
 
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 25.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 38.
 
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
-Underfull \hbox (badness 1147) in paragraph at lines 48--49
+
+LaTeX Warning: No \author given.
+
+
+Underfull \hbox (badness 1147) in paragraph at lines 61--62
 \T1/cmr/m/n/10 The net-work min-i-mizes the Tem-po-ral Dif-fer-ence
  []
 
 
 
 
-Underfull \hbox (badness 5578) in paragraph at lines 73--74
+Underfull \hbox (badness 5578) in paragraph at lines 86--87
 \T1/cmr/m/n/10 A cir-cu-lar re-play buffer $\OMS/cmsy/m/n/10 D$ \T1/cmr/m/n/10 
 stores tran-si-tions
  []
 
 Package hyperref Info: bookmark level for unknown algorithm defaults to 0 on in
-put line 76.
+put line 89.
 
 
 [1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}{/usr/share/texmf/fonts/en
@@ -506,13 +510,35 @@ c/dvips/cm-super/cm-super-t1.enc}
 
 {/usr/share/texmf/fonts/enc/dvips/cm-super/cm-super-ts1.enc}]
 
-<experiments_comparison.png, id=103, 1003.5894pt x 709.4505pt>
+<experiments_comparison.png, id=107, 1003.5894pt x 709.4505pt>
 File: experiments_comparison.png Graphic file (type png)
 <use experiments_comparison.png>
-Package pdftex.def Info: experiments_comparison.png  used on input line 193.
+Package pdftex.def Info: experiments_comparison.png  used on input line 206.
 (pdftex.def)             Requested size: 446.26582pt x 315.47173pt.
 
-Underfull \hbox (badness 1735) in paragraph at lines 230--231
+LaTeX Warning: Reference `fig:winrate' on page 2 undefined on input line 241.
+
+
+LaTeX Warning: Reference `fig:profit' on page 2 undefined on input line 241.
+
+<plots/win_rate_epsilon.png, id=110, 867.24pt x 433.62pt>
+File: plots/win_rate_epsilon.png Graphic file (type png)
+<use plots/win_rate_epsilon.png>
+Package pdftex.def Info: plots/win_rate_epsilon.png  used on input line 245.
+(pdftex.def)             Requested size: 446.26582pt x 223.13484pt.
+<plots/average_profit.png, id=111, 867.24pt x 433.62pt>
+File: plots/average_profit.png Graphic file (type png)
+<use plots/average_profit.png>
+Package pdftex.def Info: plots/average_profit.png  used on input line 248.
+(pdftex.def)             Requested size: 446.26582pt x 223.13484pt.
+<plots/action_distribution.png, id=112, 867.24pt x 433.62pt>
+File: plots/action_distribution.png Graphic file (type png)
+<use plots/action_distribution.png>
+Package pdftex.def Info: plots/action_distribution.png  used on input line 255.
+
+(pdftex.def)             Requested size: 446.26582pt x 223.13484pt.
+
+Underfull \hbox (badness 1735) in paragraph at lines 264--265
 []\T1/cmr/bx/n/10 Training Time\T1/cmr/m/n/10 : $\OMS/cmsy/m/n/10 ^^X$\T1/cmr/m
 /n/10 40 min-utes per 20,000
  []
@@ -523,22 +549,28 @@ Underfull \hbox (badness 1735) in paragraph at lines 230--231
 
 
 
-[3] [4 <./experiments_comparison.png>] (./training_details.aux)
+[3] [4 <./experiments_comparison.png>] [5 <./plots/win_rate_epsilon.png> <./plo
+ts/average_profit.png>] [6 <./plots/action_distribution.png>]
+(./training_details.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
+
+
+LaTeX Warning: There were undefined references.
+
 Package rerunfilecheck Info: File `training_details.out' has not changed.
-(rerunfilecheck)             Checksum: 0D963BBFE72524777C60BA28228DBB4F;2710.
+(rerunfilecheck)             Checksum: 65C1C1B9C6250DB1CFCE7518E90A943D;2904.
  ) 
 Here is how much of TeX's memory you used:
- 12842 strings out of 473197
- 198837 string characters out of 5718604
- 619217 words of memory out of 5000000
- 35898 multiletter control sequences out of 15000+600000
+ 12873 strings out of 473197
+ 199669 string characters out of 5718604
+ 619513 words of memory out of 5000000
+ 35924 multiletter control sequences out of 15000+600000
  572751 words of font info for 73 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 75i,10n,79p,450b,509s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,10n,79p,450b,507s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></us
 r/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/shar
 e/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texli
@@ -554,10 +586,10 @@ ic/cm-super/sfrm0700.pfb></usr/share/texmf/fonts/type1/public/cm-super/sfrm0800
 .pfb></usr/share/texmf/fonts/type1/public/cm-super/sfrm1000.pfb></usr/share/tex
 mf/fonts/type1/public/cm-super/sfrm1200.pfb></usr/share/texmf/fonts/type1/publi
 c/cm-super/sftt1000.pfb>
-Output written on training_details.pdf (4 pages, 653956 bytes).
+Output written on training_details.pdf (6 pages, 983079 bytes).
 PDF statistics:
- 216 PDF objects out of 1000 (max. 8388607)
- 171 compressed objects within 2 object streams
- 37 named destinations out of 1000 (max. 500000)
- 150 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 237 PDF objects out of 1000 (max. 8388607)
+ 184 compressed objects within 2 object streams
+ 42 named destinations out of 1000 (max. 500000)
+ 173 words of extra memory for PDF output out of 10000 (max. 10000000)
 
