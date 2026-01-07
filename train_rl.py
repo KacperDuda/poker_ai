@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import random
+import os
 from collections import deque, namedtuple
 from typing import Dict, List, Any
 from agent import PokerNet
@@ -107,7 +108,10 @@ def optimize_model(policy_net, target_net, memory, optimizer):
     return loss.item()
 
 def train_dqn():
-    players_ids = [0, 1, 2]
+    import csv
+    
+    log_file = "docs/training_log.csv"
+    players_ids = [0, 1]
     
     env = PokerEnv(players_ids, initial_stack=2000.0)
     
@@ -115,8 +119,26 @@ def train_dqn():
     
     policy_net = PokerNet(env.obs_dim, n_actions).to(device)
     target_net = PokerNet(env.obs_dim, n_actions).to(device)
-    target_net.load_state_dict(policy_net.state_dict()) 
-    target_net.eval() 
+    
+    start_episode = 0
+    
+    if os.path.exists("poker_dqn.pth"):
+        try:
+            policy_net.load_state_dict(torch.load("poker_dqn.pth", map_location=device))
+            target_net.load_state_dict(torch.load("poker_dqn.pth", map_location=device))
+            
+            if os.path.exists(log_file):
+                with open(log_file, 'r') as f:
+                    lines = f.readlines()
+                    if len(lines) > 1:
+                        last_line = lines[-1].strip().split(',')
+                        start_episode = int(last_line[0])
+                        print(f"\n🔄 Resuming from episode {start_episode}")
+        except Exception as e:
+            print(f"\n⚠️  Could not resume: {e}")
+            print("Starting fresh training...")
+    
+    target_net.eval()
 
     optimizer = optim.Adam(policy_net.parameters(), lr=LEARNING_RATE)
     memory = ReplayMemory(MEMORY_SIZE)
@@ -126,10 +148,29 @@ def train_dqn():
     
     results_window = deque(maxlen=100)
     action_counts = {0: 0, 1: 0, 2: 0}
+    
+    if start_episode == 0:
+        with open(log_file, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['Episode', 'AvgProfit', 'WinRate', 'Epsilon', 'Fold%', 'Call%', 'Raise%'])
 
-    print("--- START DQN TRAINING (FIXED) ---")
+    print("=" * 80)
+    print("🎰 POKER DQN TRAINING 🎰".center(80))
+    print("=" * 80)
+    print(f"\n🎯 Configuration:")
+    print(f"   • Players: {len(players_ids)} (1 DQN + {len(players_ids)-1} Random)")
+    print(f"   • Episodes: {num_episodes:,}")
+    print(f"   • State Dimension: {env.obs_dim}")
+    print(f"   • Network: [512→512→256] + dual heads")
+    print(f"   • Learning Rate: {LEARNING_RATE}")
+    print(f"   • Replay Buffer: {MEMORY_SIZE:,}")
+    print(f"   • Batch Size: {BATCH_SIZE}")
+    print(f"   • Device: {device}")
+    print(f"   • Log File: {log_file}")
+    print(f"\n🚀 Starting Training...")
+    print("=" * 80)
 
-    for episode in range(num_episodes):
+    for episode in range(start_episode, num_episodes):
         env.reset()
         initial_stack = env.players[0].stack
         
@@ -237,13 +278,43 @@ def train_dqn():
             win_rate = (wins / len(results_window)) * 100
             
             total_acts = sum(action_counts.values())
-            actions_dist = {k: round(v/total_acts, 2) for k,v in action_counts.items()} if total_acts > 0 else {}
+            if total_acts > 0:
+                fold_pct = action_counts[0] / total_acts * 100
+                call_pct = action_counts[1] / total_acts * 100
+                raise_pct = action_counts[2] / total_acts * 100
+            else:
+                fold_pct = call_pct = raise_pct = 0
             
-            print(f"Ep {episode}: Avg: {avg_gain:.1f}$ | WinRate: {win_rate:.1f}% | Epsilon: {eps_threshold:.2f} | Acts: {actions_dist}")
+            with open(log_file, 'a', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow([episode, f"{avg_gain:.1f}", f"{win_rate:.1f}", 
+                               f"{eps_threshold:.4f}", f"{fold_pct:.1f}", 
+                               f"{call_pct:.1f}", f"{raise_pct:.1f}"])
+            
+            if episode % 1000 == 0:
+                print(f"Ep {episode:6d} | Avg: {avg_gain:7.1f}$ | WR: {win_rate:5.1f}% | ε: {eps_threshold:.4f}")
+            
             action_counts = {0: 0, 1: 0, 2: 0}
 
         if episode % 5000 == 0:
             torch.save(policy_net.state_dict(), "poker_dqn.pth")
+            print(f"💾 Checkpoint saved: poker_dqn.pth (episode {episode})")
+    
+    torch.save(policy_net.state_dict(), "poker_dqn.pth")
+    
+    print("\n" + "=" * 80)
+    print("✅ TRAINING COMPLETE! ✅".center(80))
+    print("=" * 80)
+    
+    final_avg = sum(results_window) / len(results_window) if results_window else 0
+    final_wr = len([r for r in results_window if r > 0]) / len(results_window) * 100 if results_window else 0
+    
+    print(f"\n📊 Final Results (last 100 episodes):")
+    print(f"   • Average Profit: ${final_avg:.2f}")
+    print(f"   • Win Rate: {final_wr:.1f}%")
+    print(f"   • Total Training Steps: {steps_done:,}")
+    print(f"\n💾 Final model saved: poker_dqn.pth")
+    print("=" * 80)
 
 if __name__ == "__main__":
     train_dqn()

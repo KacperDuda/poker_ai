@@ -119,7 +119,7 @@ class PokerApp:
         
         self.agents = {}
         for p in self.env.players:
-            if p.id == 0 and mode == "1v1":
+            if p.id == 0:
                 model_path = "poker_dqn.pth" 
                 if os.path.exists(model_path):
                     self.agents[p.id] = DeepAgent(p.id, self.env.obs_dim, model_path=model_path)
