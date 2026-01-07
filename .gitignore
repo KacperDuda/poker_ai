@@ -8,3 +8,4 @@ wheels/
 *.pth
 # Virtual environments
 .venv
+*.pth
