@@ -22,15 +22,15 @@ class ConservativeAgent(Agent):
         else: return 2, 0.5 
 
 class PokerNet(nn.Module):
-    def __init__(self, input_dim, n_actions=3):
+    def __init__(self, input_dim, n_actions=3, hidden_dim=512):
         super(PokerNet, self).__init__()
         
-        self.fc1 = nn.Linear(input_dim, 512)
-        self.fc2 = nn.Linear(512, 512)
-        self.fc3 = nn.Linear(512, 256)
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = nn.Linear(hidden_dim, int(hidden_dim/2))
         
-        self.q_head = nn.Linear(256, n_actions)
-        self.slider_head = nn.Linear(256, 1)
+        self.q_head = nn.Linear(int(hidden_dim/2), n_actions)
+        self.slider_head = nn.Linear(int(hidden_dim/2), 1)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
@@ -43,22 +43,22 @@ class PokerNet(nn.Module):
         return q_values, slider_val
 
 class DeepAgent(Agent):
-    def __init__(self, agent_id, input_dim, model_path=None, shared_net=None):
-        super().__init__(agent_id)
+    def __init__(self, player_id, input_dim, model_path=None, shared_net=None, hidden_dim=512):
+        super().__init__(player_id)
         self.device = torch.device("cpu")
         
         if shared_net is not None:
             self.net = shared_net
         else:
-            self.net = PokerNet(input_dim).to(self.device)
+            self.net = PokerNet(input_dim, hidden_dim=hidden_dim).to(self.device)
             
             if model_path:
                 try:
                     self.net.load_state_dict(torch.load(model_path, map_location=self.device))
                     self.net.eval() 
-                    print(f"DeepAgent {agent_id}: Model loaded from {model_path}")
+                    print(f"DeepAgent {player_id}: Model loaded from {model_path}")
                 except Exception as e:
-                    print(f"DeepAgent {agent_id}: Could not load model from {model_path}. Starting fresh. Error: {e}")
+                    print(f"DeepAgent {player_id}: Could not load model from {model_path}. Starting fresh. Error: {e}")
 
     def get_action(self, observation, legal_moves=None):
         obs_tensor = torch.FloatTensor(observation).to(self.device).unsqueeze(0)

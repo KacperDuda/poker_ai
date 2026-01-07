@@ -153,7 +153,11 @@ class PokerEnv:
         
         self._distribute_pot() 
 
-        self._notify("showdown", {"winners": "calculated_per_pot"})
+
+
+        # Calculate best hand winners for UI display
+        display_winners = evaluator.determine_winner(self)
+        self._notify("showdown", {"winners": display_winners})
         return []
 
     def step(self, action_type, action_amt_pct=0.0):
