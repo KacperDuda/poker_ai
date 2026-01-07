@@ -7,7 +7,6 @@ import time
 import os
 import random
 
-# Monkey patch as before
 def _check_end_of_betting_round_logic(self):
     active_players = [p for p in self.players if p.is_active and not p.is_allin]
     if len(active_players) <= 1: return True 
@@ -23,11 +22,10 @@ setattr(PokerEnv, "_check_end_of_betting_round", _check_end_of_betting_round_log
 def run_demo():
     print("=== STARTING ENHANCED DEMO (10 Games) ===")
     
-    # Init GUI once
     gui = PokerGUI()
     
     model_path = "poker_dqn.pth"
-    use_ai = True # FORCE AI USE for demo purpose
+    use_ai = True 
     
     if os.path.exists(model_path):
         print(f"AI Model found at {model_path}. Player 0 will be Pre-Trained AI.")
@@ -35,7 +33,6 @@ def run_demo():
         print("Model file not found. Player 0 will be Untrained AI (Random Init).")
 
     for game_idx in range(1, 11):
-        # Randomize parameters
         n_players = random.randint(2, 6)
         starting_stack = random.choice([500.0, 1000.0, 2000.0, 5000.0])
         
@@ -44,10 +41,8 @@ def run_demo():
         players_data = [Player(i, starting_stack) for i in range(n_players)]
         env = PokerEnv(players_data, sb=10, bb=20, debug=False)
         
-        # Connect GUI
         env.add_observer(gui.update_state)
         
-        # Agents
         agents = {}
         for p in env.players:
             if p.id == 0 and use_ai:
@@ -55,25 +50,20 @@ def run_demo():
             else:
                  agents[p.id] = RandomAgent(p.id)
 
-        # Notify GUI about player types for visualization labels
         player_types = {p.id: ("AI" if (p.id==0 and use_ai) else "BOT") for p in env.players}
         env._notify("player_info", {"types": player_types})
         
-        # Start Round
         if not env.start_round():
             print("Failed to start round (not enough players?)")
             continue
             
-        # Play until proper end or just a few stages
         game_over = False
         steps = 0
         watchdog = 0
         
-        # We'll play one full hand per game configuration
         while not game_over:
             pygame.event.pump()
             
-            # Check for window close
             if not gui.running:
                 print("GUI closed by user.")
                 return
@@ -81,20 +71,16 @@ def run_demo():
             current_p_idx = env.get_current_player_idx()
             current_p = env.players[current_p_idx]
             
-            # If round technically finished (e.g. only 1 active)
             active_count = sum(1 for p in env.players if p.is_active)
             if active_count < 2:
-                # Walkover handled in step, but safety break
-                env.step(0,0) # dummy fail check
-                if env.pot > 0: env.finalize_showdown() # safety collect
+                env.step(0,0) 
+                if env.pot > 0: env.finalize_showdown() 
                 break
 
-            # Safety break for Hangs
             if watchdog > 200:
                 print(" !!! WATCHDOG: Game Stuck. Breaking loop.")
                 break
 
-            # If current player is inactive/allin, force next
             if not current_p.is_active or current_p.is_allin:
                env._next_active_player()
                watchdog += 1
@@ -102,32 +88,30 @@ def run_demo():
 
             obs = env.get_observation(current_p_idx)
             
-            # Artificial delay for viewing
             time.sleep(1.5)
             
             action, val = agents[current_p.id].get_action(obs)
             _, done, info = env.step(action, val)
-            watchdog = 0 # Reset watchdog on successful step
+            watchdog = 0 
             
             if done:
                 print(f"  Hand finished. Winner: {info.get('winner')}")
                 game_over = True
             
             if env._check_end_of_betting_round():
-                 if env.stage < 4: # RIVER is 3, Showdown is after
+                 if env.stage < 4: 
                      env.deal_next_stage()
-                     # time.sleep(1.0) # Pause on stage change
                  else:
                      env.finalize_showdown()
                      game_over = True
                      print("  Showdown!")
 
             steps += 1
-            if steps > 100: # Safety cap per hand
+            if steps > 100: 
                 print("  Forcing end of hand (too many steps)")
                 game_over = True
                 
-        time.sleep(2.0) # Pause between games
+        time.sleep(2.0) 
 
     pygame.quit()
 

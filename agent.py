@@ -3,16 +3,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# Agent definitions
-
 class Agent:
     def __init__(self, agent_id):
         self.id = agent_id
 
     def get_action(self, observation, legal_moves=None):
         raise NotImplementedError
-
-# --- CLASSIC AGENTS ---
 
 class RandomAgent(Agent):
     def get_action(self, observation, legal_moves=None):
@@ -21,25 +17,19 @@ class RandomAgent(Agent):
 class ConservativeAgent(Agent):
     def get_action(self, observation, legal_moves=None):
         roll = random.random()
-        if roll < 0.1: return 0, 0.0 # Fold
-        elif roll < 0.9: return 1, 0.0 # Call
-        else: return 2, 0.5 # Raise
-
-# --- LEARNING AGENT (DQN ARCHITECTURE) ---
+        if roll < 0.1: return 0, 0.0 
+        elif roll < 0.9: return 1, 0.0 
+        else: return 2, 0.5 
 
 class PokerNet(nn.Module):
     def __init__(self, input_dim, n_actions=3):
         super(PokerNet, self).__init__()
         
-        # Hidden layers (512 -> 512 -> 256)
         self.fc1 = nn.Linear(input_dim, 512)
         self.fc2 = nn.Linear(512, 512)
         self.fc3 = nn.Linear(512, 256)
         
-        # Q-Values head (predicts value for each action)
         self.q_head = nn.Linear(256, n_actions)
-        
-        # Slider head (rarely used in standard DQN, kept for compatibility)
         self.slider_head = nn.Linear(256, 1)
 
     def forward(self, x):
@@ -55,39 +45,30 @@ class PokerNet(nn.Module):
 class DeepAgent(Agent):
     def __init__(self, agent_id, input_dim, model_path=None, shared_net=None):
         super().__init__(agent_id)
-        # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.device = torch.device("cpu")
         
-        # Network initialization
         if shared_net is not None:
             self.net = shared_net
         else:
             self.net = PokerNet(input_dim).to(self.device)
             
-            # Load weights (if path is provided)
             if model_path:
                 try:
                     self.net.load_state_dict(torch.load(model_path, map_location=self.device))
-                    self.net.eval() # Evaluation mode (disables dropout, batchnorm, etc.)
+                    self.net.eval() 
                     print(f"DeepAgent {agent_id}: Model loaded from {model_path}")
                 except Exception as e:
                     print(f"DeepAgent {agent_id}: Could not load model from {model_path}. Starting fresh. Error: {e}")
 
     def get_action(self, observation, legal_moves=None):
-        """
-        Selects the best action (Greedy) based on Q-Values.
-        Used during gameplay (not training).
-        """
         obs_tensor = torch.FloatTensor(observation).to(self.device).unsqueeze(0)
         
         with torch.no_grad():
             q_values, slider_val = self.net(obs_tensor)
         
-        # Select action with the highest Q-value (argmax)
         action_idx = q_values.argmax(dim=1).item()
         slider_amt = slider_val.item()
         
-        # Slider logic for Raise (optionally force min 50% if network output is too low)
         if action_idx == 2 and slider_amt < 0.5:
             slider_amt = 0.5
             

@@ -1,7 +1,4 @@
-from typing import Any
-
 from card import Card
-
 
 class Player:
     def __init__(self, player_id, initial_stack):
@@ -27,4 +24,3 @@ class Player:
 
         hand_str = str(self.hand) if self.hand else "[]"
         return f"P{self.id} {hand_str:<10}|{self.stack:>6.0f} $ |{self.total_wagered:>7.0f} $ |{self.current_bet:>7.0f} $ {status:>11}"
-        

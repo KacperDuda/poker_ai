@@ -7,7 +7,7 @@ N_SUITS = len(SUITS)
 N_CARDS = N_RANKS * N_SUITS
 
 MAX_SEATS = 6
-MAX_STACK = 2000.0 # for normalization 0-1
+MAX_STACK = 2000.0 
 
 SB = 10.0
 BB = 20.0
